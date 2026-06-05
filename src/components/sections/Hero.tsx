@@ -9,17 +9,17 @@ export function Hero() {
   return (
     <section
       id="top"
-      className="relative flex min-h-screen items-center overflow-hidden bg-navy-gradient pt-16"
+      className="relative flex min-h-screen items-center overflow-hidden bg-navy-gradient pt-16 text-white"
     >
-      {/* Декоративные пятна-свечения */}
+      {/* Декоративные свечения */}
       <div className="pointer-events-none absolute inset-0 bg-hero-radial" />
       <motion.div
-        className="pointer-events-none absolute -left-20 top-20 h-72 w-72 rounded-full bg-accent/20 blur-3xl"
-        animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }}
+        className="pointer-events-none absolute -left-20 top-20 h-72 w-72 rounded-full bg-white/10 blur-3xl"
+        animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.55, 0.3] }}
         transition={{ duration: 8, repeat: Infinity }}
       />
       <motion.div
-        className="pointer-events-none absolute -right-10 bottom-10 h-80 w-80 rounded-full bg-navy-500/30 blur-3xl"
+        className="pointer-events-none absolute -right-10 bottom-10 h-80 w-80 rounded-full bg-navy-500/40 blur-3xl"
         animate={{ scale: [1.1, 1, 1.1], opacity: [0.4, 0.7, 0.4] }}
         transition={{ duration: 10, repeat: Infinity }}
       />
@@ -46,7 +46,7 @@ export function Hero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-sm text-accent-light backdrop-blur"
+            className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-sm text-white backdrop-blur"
           >
             <IconSparkles className="h-4 w-4" />
             Профессиональный клининг в {COMPANY.city}
@@ -60,9 +60,7 @@ export function Hero() {
           >
             Чистота, которой
             <br />
-            <span className="bg-gradient-to-r from-accent-light to-white bg-clip-text text-transparent">
-              можно доверять
-            </span>
+            <span className="text-navy-200">можно доверять</span>
           </motion.h1>
 
           <motion.p
@@ -81,11 +79,11 @@ export function Hero() {
             transition={{ duration: 0.7, delay: 0.3 }}
             className="mt-8 flex flex-wrap items-center gap-4"
           >
-            <button onClick={() => scrollToId('calculator')} className="btn-primary text-base">
+            <button onClick={() => scrollToId('calculator')} className="btn-white text-base">
               Рассчитать стоимость
               <IconArrowDown className="h-5 w-5" />
             </button>
-            <a href={COMPANY.phoneHref} className="btn-ghost">
+            <a href={COMPANY.phoneHref} className="btn-outline-light">
               {COMPANY.phone}
             </a>
           </motion.div>
@@ -98,30 +96,30 @@ export function Hero() {
           >
             {PERKS.map((p) => (
               <li key={p} className="flex items-center gap-2">
-                <IconCheck className="h-4 w-4 text-accent-light" />
+                <IconCheck className="h-4 w-4 text-navy-200" />
                 {p}
               </li>
             ))}
           </motion.ul>
         </div>
 
-        {/* Правая колонка — визуал-карточка */}
+        {/* Правая колонка — БЕЛАЯ карточка (контраст к тёмному фону) */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 30 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
           className="relative mx-auto w-full max-w-md"
         >
-          <div className="glass-card animate-float-slow p-8">
+          <div className="animate-float-slow rounded-3xl bg-white p-8 text-navy-900 shadow-glow">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-white/60">Стоимость от</span>
-              <span className="rounded-full bg-accent/20 px-3 py-1 text-xs font-semibold text-accent-light">
+              <span className="text-sm text-navy-500">Стоимость от</span>
+              <span className="rounded-full bg-navy-100 px-3 py-1 text-xs font-semibold text-navy-700">
                 выгодно
               </span>
             </div>
             <div className="mt-2 flex items-end gap-2">
-              <span className="text-5xl font-extrabold">15</span>
-              <span className="mb-1.5 text-white/60">сомони / м²</span>
+              <span className="text-5xl font-extrabold text-navy-900">25</span>
+              <span className="mb-1.5 text-navy-500">сомони / м²</span>
             </div>
             <div className="mt-6 space-y-3">
               {[
@@ -131,10 +129,10 @@ export function Hero() {
               ].map(([k, v]) => (
                 <div
                   key={k}
-                  className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3 text-sm"
+                  className="flex items-center justify-between rounded-2xl bg-navy-50 px-4 py-3 text-sm"
                 >
-                  <span className="text-white/60">{k}</span>
-                  <span className="font-semibold text-white">{v}</span>
+                  <span className="text-navy-500">{k}</span>
+                  <span className="font-semibold text-navy-900">{v}</span>
                 </div>
               ))}
             </div>
@@ -150,10 +148,10 @@ export function Hero() {
           <motion.div
             animate={{ y: [0, -12, 0] }}
             transition={{ duration: 5, repeat: Infinity }}
-            className="absolute -left-6 -top-6 hidden rounded-2xl border border-white/10 bg-navy-800/90 px-4 py-3 shadow-card backdrop-blur sm:block"
+            className="absolute -left-6 -top-6 hidden rounded-2xl border border-white/10 bg-navy-800 px-4 py-3 text-white shadow-card sm:block"
           >
             <div className="text-xs text-white/60">Рейтинг клиентов</div>
-            <div className="text-lg font-bold text-accent-light">★ 4.9 / 5.0</div>
+            <div className="text-lg font-bold text-navy-200">★ 4.9 / 5.0</div>
           </motion.div>
         </motion.div>
       </div>

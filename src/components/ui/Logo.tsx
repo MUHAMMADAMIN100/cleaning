@@ -10,11 +10,11 @@ export function Logo({ compact = false }: { compact?: boolean }) {
       </span>
       {!compact && (
         <span className="leading-tight">
-          <span className="block text-base font-extrabold tracking-tight text-white">
-            Архыдея
+          <span className="block text-base font-extrabold tracking-tight">
+            Arhydeya
           </span>
-          <span className="block text-[11px] font-medium uppercase tracking-[0.2em] text-accent-light">
-            клининг
+          <span className="block text-[11px] font-medium uppercase tracking-[0.2em] text-accent">
+            cleaning
           </span>
         </span>
       )}

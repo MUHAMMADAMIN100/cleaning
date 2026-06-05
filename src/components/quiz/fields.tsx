@@ -9,17 +9,17 @@ export function FieldLabel({
   required?: boolean;
 }) {
   return (
-    <label className="mb-2 block text-sm font-medium text-white/80">
+    <label className="mb-2 block text-sm font-medium text-navy-700">
       {children}
-      {required && <span className="ml-0.5 text-accent-light">*</span>}
+      {required && <span className="ml-0.5 text-accent">*</span>}
     </label>
   );
 }
 
 const inputBase =
-  'w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white ' +
-  'placeholder:text-white/30 transition-colors focus:border-accent/60 focus:bg-white/[0.07] ' +
-  'focus:outline-none focus:ring-2 focus:ring-accent/20';
+  'w-full rounded-2xl border border-navy-200 bg-white px-4 py-3 text-navy-900 ' +
+  'placeholder:text-navy-300 transition-colors focus:border-navy-600 ' +
+  'focus:outline-none focus:ring-2 focus:ring-navy-200';
 
 export function TextInput({
   invalid,
@@ -29,7 +29,7 @@ export function TextInput({
   return (
     <input
       {...props}
-      className={`${inputBase} ${invalid ? '!border-red-400/60 !ring-red-400/20' : ''} ${className}`}
+      className={`${inputBase} ${invalid ? '!border-red-400 !ring-red-100' : ''} ${className}`}
     />
   );
 }
@@ -61,28 +61,28 @@ export function OptionCard({
       onClick={onClick}
       className={`flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition-all duration-200 ${
         active
-          ? 'border-accent/70 bg-accent/15 shadow-glow'
-          : 'border-white/10 bg-white/5 hover:border-white/25 hover:bg-white/[0.07]'
+          ? 'border-navy-700 bg-navy-50 ring-1 ring-navy-300'
+          : 'border-navy-200 bg-white hover:border-navy-400 hover:bg-navy-50'
       }`}
     >
       {icon && (
         <span
           className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
-            active ? 'bg-accent/25 text-accent-light' : 'bg-white/5 text-white/60'
+            active ? 'bg-navy-800 text-white' : 'bg-navy-100 text-navy-600'
           }`}
         >
           {icon}
         </span>
       )}
       <span className="min-w-0">
-        <span className="block font-semibold text-white">{title}</span>
+        <span className="block font-semibold text-navy-900">{title}</span>
         {subtitle && (
-          <span className="block text-sm text-white/50">{subtitle}</span>
+          <span className="block text-sm text-navy-500">{subtitle}</span>
         )}
       </span>
       <span
         className={`ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all ${
-          active ? 'border-accent bg-accent' : 'border-white/30'
+          active ? 'border-navy-800 bg-navy-800' : 'border-navy-300'
         }`}
       >
         {active && <span className="h-2 w-2 rounded-full bg-white" />}

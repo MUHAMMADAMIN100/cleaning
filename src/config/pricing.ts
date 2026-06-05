@@ -24,7 +24,7 @@ export const CLEANING_TYPES: CleaningType[] = [
   {
     id: 'maintenance',
     title: 'Поддерживающая',
-    pricePerSqm: 15,
+    pricePerSqm: 25,
     description:
       'Регулярная уборка для поддержания чистоты: полы, пыль, санузлы, кухня.',
   },
@@ -39,7 +39,7 @@ export const CLEANING_TYPES: CleaningType[] = [
   {
     id: 'post_renovation',
     title: 'После ремонта',
-    pricePerSqm: 35,
+    pricePerSqm: 25,
     description:
       'Удаление строительной пыли, следов краски и клея, вынос мусора, мойка всех поверхностей.',
   },

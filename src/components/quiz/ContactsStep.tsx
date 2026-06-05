@@ -36,7 +36,7 @@ export function ContactsStep({ state, onChange, errors }: Props) {
           autoComplete="tel"
         />
         {errors.phone && (
-          <p className="mt-1.5 text-xs text-red-300">
+          <p className="mt-1.5 text-xs text-red-500">
             Введите корректный номер телефона
           </p>
         )}
@@ -45,7 +45,7 @@ export function ContactsStep({ state, onChange, errors }: Props) {
       <div>
         <FieldLabel required>Адрес объекта</FieldLabel>
         <div className="relative">
-          <IconMapPin className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/40" />
+          <IconMapPin className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-navy-400" />
           <TextInput
             value={state.address}
             invalid={errors.address}
@@ -57,7 +57,7 @@ export function ContactsStep({ state, onChange, errors }: Props) {
         </div>
       </div>
 
-      <p className="pt-1 text-xs text-white/40">
+      <p className="pt-1 text-xs text-navy-400">
         Нажимая «Отправить заявку», вы соглашаетесь на обработку персональных
         данных. Мы свяжемся с вами для подтверждения.
       </p>

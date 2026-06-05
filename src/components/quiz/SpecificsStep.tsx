@@ -22,7 +22,7 @@ export function SpecificsStep({ state, onChange, minDate }: Props) {
             min={minDate}
             value={state.date}
             onChange={(e) => set('date', e.target.value)}
-            className="[color-scheme:dark]"
+            className="[color-scheme:light]"
           />
         </div>
         <div>
@@ -31,7 +31,7 @@ export function SpecificsStep({ state, onChange, minDate }: Props) {
             type="time"
             value={state.time}
             onChange={(e) => set('time', e.target.value)}
-            className="[color-scheme:dark]"
+            className="[color-scheme:light]"
           />
         </div>
       </div>

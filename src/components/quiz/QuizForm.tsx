@@ -113,8 +113,8 @@ export function QuizForm() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
-      {/* Левая часть — шаги формы */}
-      <div className="glass-card p-6 sm:p-8">
+      {/* Левая часть — шаги формы (светлая карточка) */}
+      <div className="card-light p-6 text-navy-900 sm:p-8">
         <Stepper current={step} titles={STEP_TITLES} />
 
         <div className="mt-7">
@@ -148,7 +148,7 @@ export function QuizForm() {
         </div>
 
         {submitError && (
-          <p className="mt-4 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          <p className="mt-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-600">
             {submitError}
           </p>
         )}
@@ -156,7 +156,7 @@ export function QuizForm() {
         {/* Навигация */}
         <div className="mt-8 flex items-center gap-3">
           {step > 0 && (
-            <button type="button" onClick={goBack} className="btn-ghost">
+            <button type="button" onClick={goBack} className="btn-outline-dark">
               <IconArrowLeft className="h-4 w-4" />
               Назад
             </button>
@@ -191,14 +191,12 @@ export function QuizForm() {
         </div>
       </div>
 
-      {/* Правая часть — «Итого» (sticky) */}
+      {/* Правая часть — «Итого» (тёмная панель, sticky) */}
       <div className="lg:sticky lg:top-24 lg:self-start">
-        <div className="overflow-hidden rounded-3xl border border-accent/30 bg-gradient-to-b from-navy-700/60 to-navy-900/80 shadow-card">
+        <div className="overflow-hidden rounded-3xl bg-navy-gradient text-white shadow-card">
           <div className="border-b border-white/10 bg-white/5 px-6 py-4">
             <h3 className="font-bold">Ваш расчёт</h3>
-            <p className="text-xs text-white/50">
-              Обновляется автоматически
-            </p>
+            <p className="text-xs text-white/50">Обновляется автоматически</p>
           </div>
 
           <div className="space-y-3 px-6 py-5 text-sm">
@@ -207,9 +205,7 @@ export function QuizForm() {
               <Row key={e.title} label={e.title} value={formatPrice(e.sum)} muted />
             ))}
             {breakdown.extras.length === 0 && (
-              <p className="text-xs text-white/40">
-                Доп. услуги не выбраны
-              </p>
+              <p className="text-xs text-white/40">Доп. услуги не выбраны</p>
             )}
           </div>
 
@@ -221,7 +217,7 @@ export function QuizForm() {
                 initial={{ scale: 0.9, opacity: 0.6 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.25 }}
-                className="text-3xl font-extrabold text-accent-light"
+                className="text-3xl font-extrabold text-navy-100"
               >
                 {formatPrice(breakdown.total)}
               </motion.span>
@@ -229,11 +225,11 @@ export function QuizForm() {
           </div>
         </div>
 
-        <ul className="mt-4 space-y-2 px-2 text-xs text-white/50">
+        <ul className="mt-4 space-y-2 px-2 text-xs text-navy-500">
           {['Без предоплаты', 'Оплата после уборки', 'Можно отменить заранее'].map(
             (t) => (
               <li key={t} className="flex items-center gap-2">
-                <IconCheck className="h-3.5 w-3.5 text-accent-light" />
+                <IconCheck className="h-3.5 w-3.5 text-navy-600" />
                 {t}
               </li>
             ),

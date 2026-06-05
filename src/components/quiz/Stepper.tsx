@@ -20,7 +20,8 @@ export function Stepper({ current, titles }: Props) {
                 <motion.div
                   initial={false}
                   animate={{
-                    backgroundColor: isActive || isDone ? '#3b82f6' : 'rgba(255,255,255,0.08)',
+                    backgroundColor: isActive || isDone ? '#16297a' : '#d4ddf5',
+                    color: isActive || isDone ? '#ffffff' : '#7e98e0',
                     scale: isActive ? 1.1 : 1,
                   }}
                   className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold"
@@ -30,19 +31,19 @@ export function Stepper({ current, titles }: Props) {
               </div>
               <span
                 className={`hidden text-sm font-medium transition-colors sm:block ${
-                  isActive ? 'text-white' : isDone ? 'text-white/70' : 'text-white/40'
+                  isActive ? 'text-navy-900' : isDone ? 'text-navy-600' : 'text-navy-400'
                 }`}
               >
                 {title}
               </span>
             </div>
             {i < titles.length - 1 && (
-              <div className="mx-3 h-px flex-1 overflow-hidden rounded bg-white/10">
+              <div className="mx-3 h-px flex-1 overflow-hidden rounded bg-navy-100">
                 <motion.div
                   initial={false}
                   animate={{ width: isDone ? '100%' : '0%' }}
                   transition={{ duration: 0.4 }}
-                  className="h-full bg-accent"
+                  className="h-full bg-navy-700"
                 />
               </div>
             )}

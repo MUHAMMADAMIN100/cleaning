@@ -15,6 +15,11 @@ export function Header() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // Над тёмным Hero — светлый текст; после скролла — белая шапка с тёмным текстом.
+  const navLink = scrolled
+    ? 'text-navy-600 hover:text-navy-900'
+    : 'text-white/70 hover:text-white';
+
   return (
     <motion.header
       initial={{ y: -80, opacity: 0 }}
@@ -22,29 +27,38 @@ export function Header() {
       transition={{ duration: 0.6, ease: 'easeOut' }}
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
         scrolled
-          ? 'border-b border-white/10 bg-navy-950/80 backdrop-blur-xl'
-          : 'border-b border-transparent bg-transparent'
+          ? 'border-b border-navy-100 bg-white/90 text-navy-900 shadow-sm backdrop-blur-xl'
+          : 'border-b border-transparent bg-transparent text-white'
       }`}
     >
       <div className="container-px flex h-16 items-center justify-between">
         <Logo />
 
-        <nav className="hidden items-center gap-7 text-sm font-medium text-white/70 md:flex">
-          <button onClick={() => scrollToId('about')} className="transition hover:text-white">
-            О нас
-          </button>
-          <button onClick={() => scrollToId('tariffs')} className="transition hover:text-white">
-            Услуги
-          </button>
-          <button onClick={() => scrollToId('calculator')} className="transition hover:text-white">
-            Калькулятор
-          </button>
-          <button onClick={() => scrollToId('footer')} className="transition hover:text-white">
-            Контакты
-          </button>
+        <nav className="hidden items-center gap-7 text-sm font-medium md:flex">
+          {[
+            ['О нас', 'about'],
+            ['Услуги', 'tariffs'],
+            ['Калькулятор', 'calculator'],
+            ['Контакты', 'footer'],
+          ].map(([label, id]) => (
+            <button
+              key={id}
+              onClick={() => scrollToId(id)}
+              className={`transition ${navLink}`}
+            >
+              {label}
+            </button>
+          ))}
         </nav>
 
-        <a href={COMPANY.phoneHref} className="btn-ghost !px-4 !py-2 text-sm">
+        <a
+          href={COMPANY.phoneHref}
+          className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
+            scrolled
+              ? 'bg-navy-800 text-white hover:bg-navy-700'
+              : 'border border-white/25 bg-white/5 text-white backdrop-blur hover:bg-white/10'
+          }`}
+        >
           <IconPhone className="h-4 w-4" />
           <span className="hidden sm:inline">{COMPANY.phone}</span>
           <span className="sm:hidden">Позвонить</span>
