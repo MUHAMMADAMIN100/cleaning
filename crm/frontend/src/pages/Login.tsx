@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Sparkles, LogIn } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
+import { PasswordInput } from '../components/ui';
 
 export function Login() {
   const { login } = useAuth();
@@ -48,11 +49,9 @@ export function Login() {
           </div>
           <div className="mb-5">
             <label className="label">Пароль</label>
-            <input
-              type="password"
-              className="input"
+            <PasswordInput
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={setPassword}
               placeholder="••••••••"
             />
           </div>

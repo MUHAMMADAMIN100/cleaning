@@ -1,5 +1,44 @@
-import { type ReactNode, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { type ReactNode, useEffect, useState } from 'react';
+import { Eye, EyeOff, X } from 'lucide-react';
+
+/** Поле ввода пароля с кнопкой «показать/скрыть» */
+export function PasswordInput({
+  value,
+  onChange,
+  placeholder,
+  autoFocus,
+  autoComplete = 'off',
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  autoFocus?: boolean;
+  autoComplete?: string;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        type={show ? 'text' : 'password'}
+        className="input pr-11"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoFocus={autoFocus}
+        autoComplete={autoComplete}
+      />
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={() => setShow((s) => !s)}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-navy-400 transition-colors hover:text-navy-700"
+        aria-label={show ? 'Скрыть пароль' : 'Показать пароль'}
+      >
+        {show ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
+      </button>
+    </div>
+  );
+}
 
 export function Spinner() {
   return (

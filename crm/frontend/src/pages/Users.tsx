@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Plus, ShieldCheck, UserRound } from 'lucide-react';
 import { api } from '../api/client';
 import { useFetch } from '../api/hooks';
-import { Spinner, PageHeader, Badge, Modal } from '../components/ui';
+import { Spinner, PageHeader, Badge, Modal, PasswordInput } from '../components/ui';
 import type { Manager, Role } from '../types';
 
 export function UsersPage() {
@@ -129,7 +129,7 @@ function AddUserModal({
         </div>
         <div>
           <label className="label">Пароль * (мин. 4 символа)</label>
-          <input className="input" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <PasswordInput value={password} onChange={setPassword} placeholder="••••••••" />
         </div>
         <div>
           <label className="label">Роль</label>
