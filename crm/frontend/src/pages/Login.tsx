@@ -15,7 +15,8 @@ export function Login() {
     setError('');
     setLoading(true);
     try {
-      await login(loginValue, password);
+      // обрезаем случайные пробелы по краям (частая причина «неверный пароль»)
+      await login(loginValue.trim(), password.trim());
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Неверный логин или пароль');
     } finally {
