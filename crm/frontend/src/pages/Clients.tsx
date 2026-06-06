@@ -5,12 +5,14 @@ import { api } from '../api/client';
 import { useFetch } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 import { Spinner, PageHeader, Badge, Modal, EmptyState } from '../components/ui';
+import { useToast } from '../components/Toast';
 import {
   TAG_LABEL,
   TAG_COLOR,
   SOURCE_LABEL,
   formatDate,
 } from '../lib/labels';
+import { tempId, nowISO } from '../lib/util';
 import type { Client, ClientTag, LeadSource, Manager } from '../types';
 
 const TAGS: ClientTag[] = ['VIP', 'REGULAR', 'POTENTIAL', 'REFUSED'];
@@ -31,10 +33,45 @@ export function Clients() {
   if (source) query.set('source', source);
   query.set('sort', sort);
 
-  const { data, loading, reload } = useFetch<Client[]>(
+  const { data, loading, reload, setData } = useFetch<Client[]>(
     `/clients?${query.toString()}`,
     { deps: [search, tag, source, sort], pollMs: 15000 },
   );
+  const toast = useToast();
+
+  // оптимистично: клиент появляется в списке сразу
+  const createClient = (
+    payload: {
+      fullName: string;
+      phone: string;
+      source: LeadSource;
+      managerId?: string;
+    },
+    managerName: string | null,
+  ) => {
+    const id = tempId();
+    const optimistic: Client = {
+      id,
+      fullName: payload.fullName,
+      phone: payload.phone,
+      source: payload.source,
+      tags: [],
+      lastContactAt: nowISO(),
+      managerId: payload.managerId,
+      manager: managerName
+        ? { id: payload.managerId ?? '', fullName: managerName }
+        : null,
+      _count: { orders: 0 },
+    };
+    setData((list) => (list ? [optimistic, ...list] : [optimistic]));
+    api
+      .post('/clients', payload)
+      .then(() => reload())
+      .catch((e) => {
+        toast.error(e?.response?.data?.message || 'Не удалось создать клиента');
+        setData((list) => (list ? list.filter((c) => c.id !== id) : list));
+      });
+  };
 
   const exportCsv = async () => {
     const res = await api.get('/clients/export', { responseType: 'blob' });
@@ -160,10 +197,7 @@ export function Clients() {
       {showAdd && (
         <AddClientModal
           onClose={() => setShowAdd(false)}
-          onCreated={() => {
-            setShowAdd(false);
-            reload();
-          }}
+          onCreate={createClient}
           isDirector={user?.role === 'DIRECTOR'}
         />
       )}
@@ -173,39 +207,37 @@ export function Clients() {
 
 function AddClientModal({
   onClose,
-  onCreated,
+  onCreate,
   isDirector,
 }: {
   onClose: () => void;
-  onCreated: () => void;
+  onCreate: (
+    payload: {
+      fullName: string;
+      phone: string;
+      source: LeadSource;
+      managerId?: string;
+    },
+    managerName: string | null,
+  ) => void;
   isDirector: boolean;
 }) {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [source, setSource] = useState<LeadSource>('CALL');
   const [managerId, setManagerId] = useState('');
-  const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
   const { data: managers } = useFetch<Manager[]>(
     isDirector ? '/users/managers' : null,
   );
 
-  const submit = async () => {
-    setSaving(true);
-    setError('');
-    try {
-      await api.post('/clients', {
-        fullName,
-        phone,
-        source,
-        managerId: managerId || undefined,
-      });
-      onCreated();
-    } catch (e: any) {
-      setError(e?.response?.data?.message || 'Ошибка');
-    } finally {
-      setSaving(false);
-    }
+  const submit = () => {
+    const managerName =
+      (managers ?? []).find((m) => m.id === managerId)?.fullName ?? null;
+    onCreate(
+      { fullName, phone, source, managerId: managerId || undefined },
+      managerName,
+    );
+    onClose();
   };
 
   return (
@@ -238,15 +270,10 @@ function AddClientModal({
             </select>
           </div>
         )}
-        {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-            {error}
-          </div>
-        )}
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} className="btn-ghost">Отмена</button>
-          <button onClick={submit} disabled={saving || !fullName || !phone} className="btn-primary">
-            {saving ? 'Сохранение…' : 'Создать'}
+          <button onClick={submit} disabled={!fullName || !phone} className="btn-primary">
+            Создать
           </button>
         </div>
       </div>

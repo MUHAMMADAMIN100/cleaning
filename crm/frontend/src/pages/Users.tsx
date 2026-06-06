@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { useFetch } from '../api/hooks';
 import { Spinner, PageHeader, Badge, Modal, PasswordInput } from '../components/ui';
 import { useToast } from '../components/Toast';
+import { tempId } from '../lib/util';
 import type { Manager, Role } from '../types';
 
 export function UsersPage() {
@@ -21,6 +22,31 @@ export function UsersPage() {
       toast.error('Не удалось изменить статус сотрудника');
       reload();
     }
+  };
+
+  // оптимистично: сотрудник появляется сразу
+  const createUser = (payload: {
+    fullName: string;
+    login: string;
+    password: string;
+    role: Role;
+  }) => {
+    const id = tempId();
+    const optimistic: Manager = {
+      id,
+      login: payload.login,
+      fullName: payload.fullName,
+      role: payload.role,
+      isActive: true,
+    };
+    setData((u) => (u ? [...u, optimistic] : [optimistic]));
+    api
+      .post('/users', payload)
+      .then(() => reload())
+      .catch((e) => {
+        toast.error(e?.response?.data?.message || 'Не удалось создать сотрудника');
+        setData((u) => (u ? u.filter((x) => x.id !== id) : u));
+      });
   };
 
   return (
@@ -88,10 +114,7 @@ export function UsersPage() {
       {showAdd && (
         <AddUserModal
           onClose={() => setShowAdd(false)}
-          onCreated={() => {
-            setShowAdd(false);
-            reload();
-          }}
+          onCreate={createUser}
         />
       )}
     </div>
@@ -100,29 +123,24 @@ export function UsersPage() {
 
 function AddUserModal({
   onClose,
-  onCreated,
+  onCreate,
 }: {
   onClose: () => void;
-  onCreated: () => void;
+  onCreate: (payload: {
+    fullName: string;
+    login: string;
+    password: string;
+    role: Role;
+  }) => void;
 }) {
   const [fullName, setFullName] = useState('');
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<Role>('MANAGER');
-  const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
 
-  const submit = async () => {
-    setSaving(true);
-    setError('');
-    try {
-      await api.post('/users', { fullName, login, password, role });
-      onCreated();
-    } catch (e: any) {
-      setError(e?.response?.data?.message || 'Ошибка');
-    } finally {
-      setSaving(false);
-    }
+  const submit = () => {
+    onCreate({ fullName, login, password, role });
+    onClose();
   };
 
   return (
@@ -147,19 +165,14 @@ function AddUserModal({
             <option value="DIRECTOR">Руководитель</option>
           </select>
         </div>
-        {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-            {error}
-          </div>
-        )}
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} className="btn-ghost">Отмена</button>
           <button
             onClick={submit}
-            disabled={saving || !fullName || !login || password.length < 4}
+            disabled={!fullName || !login || password.length < 4}
             className="btn-primary"
           >
-            {saving ? 'Создание…' : 'Создать'}
+            Создать
           </button>
         </div>
       </div>

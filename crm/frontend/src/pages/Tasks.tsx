@@ -11,6 +11,7 @@ import {
   TASK_STATUS_LABEL,
   formatDate,
 } from '../lib/labels';
+import { tempId, nowISO } from '../lib/util';
 import type { Manager, Task, TaskPriority, TaskStatus } from '../types';
 
 const STATUSES: TaskStatus[] = ['OPEN', 'IN_PROGRESS', 'DONE'];
@@ -46,6 +47,41 @@ export function Tasks() {
       toast.error('Не удалось удалить задачу');
       reload();
     }
+  };
+
+  // оптимистично: задача появляется в списке сразу
+  const createTask = (
+    payload: {
+      title: string;
+      description?: string;
+      assigneeId: string;
+      priority: TaskPriority;
+      deadline?: string;
+    },
+    assigneeName: string,
+  ) => {
+    const id = tempId();
+    const optimistic: Task = {
+      id,
+      title: payload.title,
+      description: payload.description,
+      priority: payload.priority,
+      status: 'OPEN',
+      deadline: payload.deadline || null,
+      assigneeId: payload.assigneeId,
+      creatorId: user?.id ?? '',
+      assignee: { id: payload.assigneeId, fullName: assigneeName },
+      creator: { id: user?.id ?? '', fullName: user?.fullName ?? '' },
+      createdAt: nowISO(),
+    };
+    setData((t) => (t ? [optimistic, ...t] : [optimistic]));
+    api
+      .post('/tasks', payload)
+      .then(() => reload())
+      .catch((e) => {
+        toast.error(e?.response?.data?.message || 'Не удалось создать задачу');
+        setData((t) => (t ? t.filter((x) => x.id !== id) : t));
+      });
   };
 
   return (
@@ -113,10 +149,7 @@ export function Tasks() {
       {showAdd && (
         <AddTaskModal
           onClose={() => setShowAdd(false)}
-          onCreated={() => {
-            setShowAdd(false);
-            reload();
-          }}
+          onCreate={createTask}
         />
       )}
     </div>
@@ -125,10 +158,19 @@ export function Tasks() {
 
 function AddTaskModal({
   onClose,
-  onCreated,
+  onCreate,
 }: {
   onClose: () => void;
-  onCreated: () => void;
+  onCreate: (
+    payload: {
+      title: string;
+      description?: string;
+      assigneeId: string;
+      priority: TaskPriority;
+      deadline?: string;
+    },
+    assigneeName: string,
+  ) => void;
 }) {
   const { data: managers } = useFetch<Manager[]>('/users/managers');
   const [title, setTitle] = useState('');
@@ -136,22 +178,21 @@ function AddTaskModal({
   const [assigneeId, setAssigneeId] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('MEDIUM');
   const [deadline, setDeadline] = useState('');
-  const [saving, setSaving] = useState(false);
 
-  const submit = async () => {
-    setSaving(true);
-    try {
-      await api.post('/tasks', {
+  const submit = () => {
+    const assigneeName =
+      (managers ?? []).find((m) => m.id === assigneeId)?.fullName ?? '';
+    onCreate(
+      {
         title,
         description: description || undefined,
         assigneeId,
         priority,
         deadline: deadline || undefined,
-      });
-      onCreated();
-    } finally {
-      setSaving(false);
-    }
+      },
+      assigneeName,
+    );
+    onClose();
   };
 
   return (
@@ -190,8 +231,8 @@ function AddTaskModal({
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} className="btn-ghost">Отмена</button>
-          <button onClick={submit} disabled={saving || !title || !assigneeId} className="btn-primary">
-            {saving ? 'Создание…' : 'Поставить задачу'}
+          <button onClick={submit} disabled={!title || !assigneeId} className="btn-primary">
+            Поставить задачу
           </button>
         </div>
       </div>

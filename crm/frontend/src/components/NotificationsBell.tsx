@@ -37,12 +37,14 @@ export function NotificationsBell() {
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
 
-  const openAndRead = async () => {
-    setOpen((o) => !o);
-    if (!open && unread > 0) {
-      await api.patch('/notifications/read-all');
+  const openAndRead = () => {
+    const willOpen = !open;
+    setOpen(willOpen);
+    if (willOpen && unread > 0) {
+      // оптимистично гасим счётчик и помечаем прочитанными, запрос в фоне
       setUnread(0);
       setItems((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      api.patch('/notifications/read-all').catch(() => {});
     }
   };
 

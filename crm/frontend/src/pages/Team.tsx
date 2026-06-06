@@ -4,11 +4,14 @@ import { api } from '../api/client';
 import { useFetch } from '../api/hooks';
 import { Spinner, PageHeader, Modal, EmptyState, Badge } from '../components/ui';
 import { useToast } from '../components/Toast';
+import { useAuth } from '../auth/AuthContext';
 import { STAGE_COLOR, STAGE_LABEL, formatDateTime } from '../lib/labels';
+import { tempId } from '../lib/util';
 import type { Cleaner, Order } from '../types';
 
 export function Team() {
   const toast = useToast();
+  const { user } = useAuth();
   const { data, loading, reload, setData } = useFetch<Cleaner[]>('/cleaners', {
     pollMs: 20000,
   });
@@ -25,6 +28,27 @@ export function Team() {
       toast.error('Не удалось удалить клинера');
       reload();
     }
+  };
+
+  // оптимистично: клинер появляется сразу
+  const createCleaner = (payload: { fullName: string; phone?: string }) => {
+    const id = tempId();
+    const optimistic: Cleaner = {
+      id,
+      fullName: payload.fullName,
+      phone: payload.phone,
+      isActive: true,
+      managerId: user?.id,
+      manager: user ? { id: user.id, fullName: user.fullName } : null,
+    };
+    setData((cl) => (cl ? [...cl, optimistic] : [optimistic]));
+    api
+      .post('/cleaners', payload)
+      .then(() => reload())
+      .catch((e) => {
+        toast.error(e?.response?.data?.message || 'Не удалось добавить клинера');
+        setData((cl) => (cl ? cl.filter((c) => c.id !== id) : cl));
+      });
   };
 
   return (
@@ -112,10 +136,7 @@ export function Team() {
       {showAdd && (
         <AddCleanerModal
           onClose={() => setShowAdd(false)}
-          onCreated={() => {
-            setShowAdd(false);
-            reload();
-          }}
+          onCreate={createCleaner}
         />
       )}
     </div>
@@ -124,23 +145,17 @@ export function Team() {
 
 function AddCleanerModal({
   onClose,
-  onCreated,
+  onCreate,
 }: {
   onClose: () => void;
-  onCreated: () => void;
+  onCreate: (payload: { fullName: string; phone?: string }) => void;
 }) {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [saving, setSaving] = useState(false);
 
-  const submit = async () => {
-    setSaving(true);
-    try {
-      await api.post('/cleaners', { fullName, phone: phone || undefined });
-      onCreated();
-    } finally {
-      setSaving(false);
-    }
+  const submit = () => {
+    onCreate({ fullName, phone: phone || undefined });
+    onClose();
   };
 
   return (
@@ -156,8 +171,8 @@ function AddCleanerModal({
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} className="btn-ghost">Отмена</button>
-          <button onClick={submit} disabled={saving || !fullName} className="btn-primary">
-            {saving ? 'Сохранение…' : 'Добавить'}
+          <button onClick={submit} disabled={!fullName} className="btn-primary">
+            Добавить
           </button>
         </div>
       </div>

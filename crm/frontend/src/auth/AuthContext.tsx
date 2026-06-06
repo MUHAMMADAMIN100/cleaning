@@ -39,13 +39,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    try {
-      await api.post('/auth/logout');
-    } catch {
-      /* ignore */
-    }
+    // мгновенный выход; запрос на сервер — в фоне
     setToken(null);
     setUser(null);
+    api.post('/auth/logout').catch(() => {});
   };
 
   return (

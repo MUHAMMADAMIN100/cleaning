@@ -17,11 +17,13 @@ import {
   formatPrice,
   formatDate,
 } from '../lib/labels';
+import { tempId, nowISO } from '../lib/util';
 import type {
   CleaningType,
   Client,
   ClientTag,
   Manager,
+  Order,
 } from '../types';
 
 const ALL_TAGS: ClientTag[] = ['VIP', 'REGULAR', 'POTENTIAL', 'REFUSED'];
@@ -52,6 +54,43 @@ export function ClientCard() {
       const base = prev ?? data.tags;
       return base.includes(t) ? base.filter((x) => x !== t) : [...base, t];
     });
+
+  // оптимистично: новый заказ появляется в истории сразу
+  const createOrder = (payload: {
+    cleaningType: CleaningType;
+    area: number;
+    estimatedPrice: number;
+    managerId?: string;
+  }) => {
+    if (!data) return;
+    const id = tempId();
+    const optimistic: Order = {
+      id,
+      clientId: data.id,
+      managerId: payload.managerId,
+      stage: 'NEW',
+      source: 'CALL',
+      cleaningType: payload.cleaningType,
+      area: payload.area,
+      estimatedPrice: payload.estimatedPrice,
+      finalPrice: null,
+      isLarge: payload.estimatedPrice >= 2000,
+      createdAt: nowISO(),
+      cleaners: [],
+    };
+    setData((c) =>
+      c ? { ...c, orders: [optimistic, ...(c.orders ?? [])] } : c,
+    );
+    api
+      .post('/orders', { clientId: data.id, source: 'CALL', ...payload })
+      .then(() => reload())
+      .catch((e) => {
+        toast.error(e?.response?.data?.message || 'Не удалось создать заказ');
+        setData((c) =>
+          c ? { ...c, orders: (c.orders ?? []).filter((o) => o.id !== id) } : c,
+        );
+      });
+  };
 
   const saveMeta = async () => {
     const nextNotes = curNotes;
@@ -205,13 +244,9 @@ export function ClientCard() {
       />
       {showAddOrder && (
         <AddOrderModal
-          clientId={data.id}
           isDirector={user?.role === 'DIRECTOR'}
           onClose={() => setShowAddOrder(false)}
-          onCreated={() => {
-            setShowAddOrder(false);
-            reload();
-          }}
+          onCreate={createOrder}
         />
       )}
     </div>
@@ -228,40 +263,35 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 function AddOrderModal({
-  clientId,
   isDirector,
   onClose,
-  onCreated,
+  onCreate,
 }: {
-  clientId: string;
   isDirector: boolean;
   onClose: () => void;
-  onCreated: () => void;
+  onCreate: (payload: {
+    cleaningType: CleaningType;
+    area: number;
+    estimatedPrice: number;
+    managerId?: string;
+  }) => void;
 }) {
   const [cleaningType, setCleaningType] = useState<CleaningType>('GENERAL');
   const [area, setArea] = useState('');
   const [estimatedPrice, setEstimatedPrice] = useState('');
   const [managerId, setManagerId] = useState('');
-  const [saving, setSaving] = useState(false);
   const { data: managers } = useFetch<Manager[]>(
     isDirector ? '/users/managers' : null,
   );
 
-  const submit = async () => {
-    setSaving(true);
-    try {
-      await api.post('/orders', {
-        clientId,
-        cleaningType,
-        area: Number(area) || 0,
-        estimatedPrice: Number(estimatedPrice) || 0,
-        managerId: managerId || undefined,
-        source: 'CALL',
-      });
-      onCreated();
-    } finally {
-      setSaving(false);
-    }
+  const submit = () => {
+    onCreate({
+      cleaningType,
+      area: Number(area) || 0,
+      estimatedPrice: Number(estimatedPrice) || 0,
+      managerId: managerId || undefined,
+    });
+    onClose();
   };
 
   return (
@@ -298,8 +328,8 @@ function AddOrderModal({
         )}
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} className="btn-ghost">Отмена</button>
-          <button onClick={submit} disabled={saving} className="btn-primary">
-            {saving ? 'Создание…' : 'Создать заказ'}
+          <button onClick={submit} className="btn-primary">
+            Создать заказ
           </button>
         </div>
       </div>

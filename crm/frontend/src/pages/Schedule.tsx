@@ -4,7 +4,9 @@ import { api } from '../api/client';
 import { useFetch } from '../api/hooks';
 import { Spinner, PageHeader, Modal, EmptyState } from '../components/ui';
 import { useToast } from '../components/Toast';
+import { useAuth } from '../auth/AuthContext';
 import { SCHEDULE_LABEL, formatDateTime } from '../lib/labels';
+import { tempId } from '../lib/util';
 import type { ScheduleEvent, ScheduleType } from '../types';
 
 const TYPE_ICON: Record<ScheduleType, typeof MapPin> = {
@@ -15,6 +17,7 @@ const TYPE_ICON: Record<ScheduleType, typeof MapPin> = {
 
 export function Schedule() {
   const toast = useToast();
+  const { user } = useAuth();
   const { data, loading, reload, setData } = useFetch<ScheduleEvent[]>(
     '/schedule',
     { pollMs: 20000 },
@@ -29,6 +32,33 @@ export function Schedule() {
       toast.error('Не удалось удалить событие');
       reload();
     }
+  };
+
+  // оптимистично: событие появляется сразу
+  const createEvent = (payload: {
+    title: string;
+    type: ScheduleType;
+    date: string;
+    note?: string;
+  }) => {
+    const id = tempId();
+    const optimistic: ScheduleEvent = {
+      id,
+      title: payload.title,
+      type: payload.type,
+      date: new Date(payload.date).toISOString(),
+      note: payload.note,
+      managerId: user?.id ?? '',
+      manager: user ? { id: user.id, fullName: user.fullName } : undefined,
+    };
+    setData((ev) => (ev ? [...ev, optimistic] : [optimistic]));
+    api
+      .post('/schedule', payload)
+      .then(() => reload())
+      .catch((e) => {
+        toast.error(e?.response?.data?.message || 'Не удалось создать событие');
+        setData((ev) => (ev ? ev.filter((x) => x.id !== id) : ev));
+      });
   };
 
   // группировка по дате
@@ -102,10 +132,7 @@ export function Schedule() {
       {showAdd && (
         <AddEventModal
           onClose={() => setShowAdd(false)}
-          onCreated={() => {
-            setShowAdd(false);
-            reload();
-          }}
+          onCreate={createEvent}
         />
       )}
     </div>
@@ -114,25 +141,24 @@ export function Schedule() {
 
 function AddEventModal({
   onClose,
-  onCreated,
+  onCreate,
 }: {
   onClose: () => void;
-  onCreated: () => void;
+  onCreate: (payload: {
+    title: string;
+    type: ScheduleType;
+    date: string;
+    note?: string;
+  }) => void;
 }) {
   const [title, setTitle] = useState('');
   const [type, setType] = useState<ScheduleType>('INSPECTION');
   const [date, setDate] = useState('');
   const [note, setNote] = useState('');
-  const [saving, setSaving] = useState(false);
 
-  const submit = async () => {
-    setSaving(true);
-    try {
-      await api.post('/schedule', { title, type, date, note: note || undefined });
-      onCreated();
-    } finally {
-      setSaving(false);
-    }
+  const submit = () => {
+    onCreate({ title, type, date, note: note || undefined });
+    onClose();
   };
 
   return (
@@ -160,8 +186,8 @@ function AddEventModal({
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} className="btn-ghost">Отмена</button>
-          <button onClick={submit} disabled={saving || !title || !date} className="btn-primary">
-            {saving ? 'Сохранение…' : 'Добавить'}
+          <button onClick={submit} disabled={!title || !date} className="btn-primary">
+            Добавить
           </button>
         </div>
       </div>
