@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CalculatorStep } from './CalculatorStep';
 import { SpecificsStep } from './SpecificsStep';
@@ -8,7 +8,7 @@ import { Stepper } from './Stepper';
 import { IconArrowLeft, IconArrowRight, IconCheck } from '../ui/icons';
 import { calculatePrice } from '../../lib/calc';
 import { formatPrice } from '../../lib/format';
-import { submitOrder } from '../../lib/submit';
+import { submitOrderOptimistic, flushPendingOrders } from '../../lib/submit';
 import { DEFAULTS } from '../../config/pricing';
 import type {
   CalculatorState,
@@ -28,8 +28,11 @@ function todayISO(): string {
 export function QuizForm() {
   const [step, setStep] = useState(0); // 0,1,2
   const [done, setDone] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
+
+  // при загрузке — дослать заявки, которые не ушли в прошлый раз (сбой сети)
+  useEffect(() => {
+    flushPendingOrders();
+  }, []);
 
   const [calc, setCalc] = useState<CalculatorState>({
     area: DEFAULTS.area,
@@ -83,11 +86,11 @@ export function QuizForm() {
   };
   const goBack = () => setStep((s) => Math.max(s - 1, 0));
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!validateContacts()) return;
-    setSubmitting(true);
-    setSubmitError('');
-    const res = await submitOrder(
+    // Оптимистично: показываем «Заявка отправлена» мгновенно,
+    // отправка уходит в фон (при сбое — переотправится при след. загрузке).
+    submitOrderOptimistic(
       {
         calculator: calc,
         quiz,
@@ -96,14 +99,7 @@ export function QuizForm() {
       },
       honeypot,
     );
-    setSubmitting(false);
-    if (res.ok) {
-      setDone(true);
-    } else {
-      setSubmitError(
-        res.error || 'Не удалось отправить заявку. Попробуйте ещё раз.',
-      );
-    }
+    setDone(true);
   };
 
   if (done) {
@@ -167,12 +163,6 @@ export function QuizForm() {
           </AnimatePresence>
         </div>
 
-        {submitError && (
-          <p className="mt-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-600">
-            {submitError}
-          </p>
-        )}
-
         {/* Навигация */}
         <div className="mt-8 flex items-center gap-3">
           {step > 0 && (
@@ -195,17 +185,10 @@ export function QuizForm() {
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={submitting}
               className="btn-primary ml-auto"
             >
-              {submitting ? (
-                'Отправляем…'
-              ) : (
-                <>
-                  Отправить заявку
-                  <IconCheck className="h-5 w-5" />
-                </>
-              )}
+              Отправить заявку
+              <IconCheck className="h-5 w-5" />
             </button>
           )}
         </div>

@@ -64,13 +64,17 @@ async function sendToTelegram(text: string): Promise<SubmitResult> {
  *   VITE_CRM_API_URL    — базовый URL API, напр. https://crm-api.up.railway.app/api
  *   VITE_CRM_INTAKE_KEY — ключ приёма заявок (должен совпадать с LEADS_INTAKE_API_KEY на бэке)
  */
-async function sendToCrm(order: OrderPayload, honeypot: string): Promise<void> {
+/** @returns true — успех, false — ошибка, null — CRM не настроена */
+async function sendToCrm(
+  order: OrderPayload,
+  honeypot: string,
+): Promise<boolean | null> {
   const apiUrl = import.meta.env.VITE_CRM_API_URL as string | undefined;
   const apiKey = import.meta.env.VITE_CRM_INTAKE_KEY as string | undefined;
-  if (!apiUrl || !apiKey) return; // CRM ещё не подключена
+  if (!apiUrl || !apiKey) return null; // CRM не подключена
 
   try {
-    await fetch(`${apiUrl}/leads/intake`, {
+    const res = await fetch(`${apiUrl}/leads/intake`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -78,26 +82,80 @@ async function sendToCrm(order: OrderPayload, honeypot: string): Promise<void> {
       },
       body: JSON.stringify({ ...order, company: honeypot }),
     });
+    return res.ok;
   } catch (e) {
     console.warn('[CRM] Не удалось отправить заявку в CRM:', e);
+    return false;
   }
 }
 
+/** Пытается доставить заявку по всем настроенным каналам. */
+async function trySend(order: OrderPayload, honeypot: string): Promise<boolean> {
+  const text = buildOrderText(order);
+  const [tg, crm] = await Promise.all([
+    sendToTelegram(text),
+    sendToCrm(order, honeypot),
+  ]);
+  const crmOk = crm === null ? true : crm; // не настроена — не считаем ошибкой
+  return tg.ok && crmOk;
+}
+
+// ── Очередь повторной отправки (чтобы НЕ терять заявки при сбое сети) ──
+const QUEUE_KEY = 'arhydeya_pending_orders';
+type QueuedOrder = { order: OrderPayload; honeypot: string };
+
+function saveToQueue(item: QueuedOrder) {
+  try {
+    const q: QueuedOrder[] = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
+    q.push(item);
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Повторная отправка отложенных заявок (вызывается при загрузке страницы). */
+export async function flushPendingOrders(): Promise<void> {
+  let q: QueuedOrder[] = [];
+  try {
+    q = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
+  } catch {
+    return;
+  }
+  if (!q.length) return;
+
+  const remaining: QueuedOrder[] = [];
+  for (const item of q) {
+    try {
+      const ok = await trySend(item.order, item.honeypot);
+      if (!ok) remaining.push(item);
+    } catch {
+      remaining.push(item);
+    }
+  }
+  localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
+}
+
 /**
- * Главная функция отправки заявки из формы.
+ * Оптимистичная отправка: НЕ блокирует интерфейс.
+ * Запускается в фоне; при сбое — заявка сохраняется и переотправляется позже.
+ */
+export function submitOrderOptimistic(order: OrderPayload, honeypot = ''): void {
+  trySend(order, honeypot)
+    .then((ok) => {
+      if (!ok) saveToQueue({ order, honeypot });
+    })
+    .catch(() => saveToQueue({ order, honeypot }));
+}
+
+/**
+ * Синхронная отправка (с ожиданием) — оставлена на случай, если понадобится.
  * @param honeypot — скрытое антиспам-поле (должно быть пустым у людей)
  */
 export async function submitOrder(
   order: OrderPayload,
   honeypot = '',
 ): Promise<SubmitResult> {
-  const text = buildOrderText(order);
-
-  // Параллельно: Telegram (основной) + CRM (если настроена).
-  const [tg] = await Promise.all([
-    sendToTelegram(text),
-    sendToCrm(order, honeypot),
-  ]);
-
-  return tg;
+  const ok = await trySend(order, honeypot);
+  return { ok };
 }
