@@ -51,6 +51,8 @@ export function QuizForm() {
   const [contactErrors, setContactErrors] = useState<
     Partial<Record<keyof ContactState, boolean>>
   >({});
+  // Honeypot — скрытое поле-ловушка для ботов (люди его не видят и не заполняют)
+  const [honeypot, setHoneypot] = useState('');
 
   const breakdown = useMemo(() => calculatePrice(calc), [calc]);
   const minDate = useMemo(() => todayISO(), []);
@@ -85,12 +87,15 @@ export function QuizForm() {
     if (!validateContacts()) return;
     setSubmitting(true);
     setSubmitError('');
-    const res = await submitOrder({
-      calculator: calc,
-      quiz,
-      contact,
-      total: breakdown.total,
-    });
+    const res = await submitOrder(
+      {
+        calculator: calc,
+        quiz,
+        contact,
+        total: breakdown.total,
+      },
+      honeypot,
+    );
     setSubmitting(false);
     if (res.ok) {
       setDone(true);
@@ -115,6 +120,17 @@ export function QuizForm() {
     <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
       {/* Левая часть — шаги формы (светлая карточка) */}
       <div className="card-light p-6 text-navy-900 sm:p-8">
+        {/* Honeypot — невидимая ловушка для ботов */}
+        <input
+          type="text"
+          name="company"
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          value={honeypot}
+          onChange={(e) => setHoneypot(e.target.value)}
+          className="absolute left-[-9999px] h-0 w-0 opacity-0"
+        />
         <Stepper current={step} titles={STEP_TITLES} />
 
         <div className="mt-7">

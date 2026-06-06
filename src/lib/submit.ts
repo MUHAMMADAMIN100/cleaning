@@ -59,29 +59,45 @@ async function sendToTelegram(text: string): Promise<SubmitResult> {
 }
 
 /**
- * Точка подключения CRM (заглушка на будущее).
- * Когда появится CRM-эндпоинт — реализуем POST сюда.
+ * Отправка заявки в CRM «Archidea Sistem» (NestJS-бэкенд).
+ * Эндпоинт защищён API-ключом (заголовок x-api-key).
+ *   VITE_CRM_API_URL    — базовый URL API, напр. https://crm-api.up.railway.app/api
+ *   VITE_CRM_INTAKE_KEY — ключ приёма заявок (должен совпадать с LEADS_INTAKE_API_KEY на бэке)
  */
-async function sendToCrm(_text: string, _order: OrderPayload): Promise<void> {
-  const endpoint = import.meta.env.VITE_CRM_ENDPOINT as string | undefined;
-  if (!endpoint) return; // CRM ещё не подключена
+async function sendToCrm(order: OrderPayload, honeypot: string): Promise<void> {
+  const apiUrl = import.meta.env.VITE_CRM_API_URL as string | undefined;
+  const apiKey = import.meta.env.VITE_CRM_INTAKE_KEY as string | undefined;
+  if (!apiUrl || !apiKey) return; // CRM ещё не подключена
+
   try {
-    await fetch(endpoint, {
+    await fetch(`${apiUrl}/leads/intake`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(_order),
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+      },
+      body: JSON.stringify({ ...order, company: honeypot }),
     });
   } catch (e) {
     console.warn('[CRM] Не удалось отправить заявку в CRM:', e);
   }
 }
 
-/** Главная функция отправки заявки из формы. */
-export async function submitOrder(order: OrderPayload): Promise<SubmitResult> {
+/**
+ * Главная функция отправки заявки из формы.
+ * @param honeypot — скрытое антиспам-поле (должно быть пустым у людей)
+ */
+export async function submitOrder(
+  order: OrderPayload,
+  honeypot = '',
+): Promise<SubmitResult> {
   const text = buildOrderText(order);
 
   // Параллельно: Telegram (основной) + CRM (если настроена).
-  const [tg] = await Promise.all([sendToTelegram(text), sendToCrm(text, order)]);
+  const [tg] = await Promise.all([
+    sendToTelegram(text),
+    sendToCrm(order, honeypot),
+  ]);
 
   return tg;
 }

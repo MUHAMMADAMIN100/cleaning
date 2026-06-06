@@ -27,3 +27,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# CRM — отдельный проект (свой git-репозиторий)
+/crm
