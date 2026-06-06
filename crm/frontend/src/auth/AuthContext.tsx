@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from 'react';
 import { api, setToken } from '../api/client';
+import { clearFetchCache } from '../api/hooks';
 import type { AuthUser } from '../types';
 
 interface AuthCtx {
@@ -34,12 +35,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       '/auth/login',
       { login, password },
     );
+    clearFetchCache(); // чистим возможный кэш прошлой сессии
     setToken(res.data.token);
     setUser(res.data.user);
   };
 
   const logout = async () => {
     // мгновенный выход; запрос на сервер — в фоне
+    clearFetchCache();
     setToken(null);
     setUser(null);
     api.post('/auth/logout').catch(() => {});

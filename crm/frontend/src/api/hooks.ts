@@ -9,15 +9,31 @@ interface Options {
 }
 
 /**
- * Загрузка данных с GET-эндпоинта с фоновым авто-обновлением.
- * - первый запрос показывает спиннер (loading);
- * - поллинг и refetch-при-фокусе обновляют данные «тихо» (без спиннера);
- * - reload() — тихая перезагрузка для согласования после мутаций.
+ * Клиентский кэш ответов (stale-while-revalidate).
+ * Благодаря ему повторный заход в раздел показывает данные МГНОВЕННО
+ * (без спиннера), а свежие подгружаются в фоне.
+ */
+const cache = new Map<string, unknown>();
+
+/** Очистка кэша (например, при выходе/входе — чтобы данные не «протекли») */
+export function clearFetchCache() {
+  cache.clear();
+}
+
+type Updater<T> = T | null | ((prev: T | null) => T | null);
+
+/**
+ * Загрузка данных с GET-эндпоинта.
+ * - есть кэш по URL → показываем мгновенно, спиннера нет;
+ * - нет кэша → спиннер только при самой первой загрузке;
+ * - поллинг и refetch-при-фокусе обновляют «тихо».
  */
 export function useFetch<T>(url: string | null, opts: Options = {}) {
   const { deps = [], pollMs } = opts;
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<T | null>(
+    () => (url && cache.has(url) ? (cache.get(url) as T) : null),
+  );
+  const [loading, setLoading] = useState(() => !(url && cache.has(url)));
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(
@@ -26,22 +42,32 @@ export function useFetch<T>(url: string | null, opts: Options = {}) {
         setLoading(false);
         return;
       }
-      if (!silent) setLoading(true);
+      const hasCache = cache.has(url);
+      if (hasCache) {
+        // мгновенно отдаём кэш, спиннер не показываем
+        setData(cache.get(url) as T);
+        setLoading(false);
+      } else if (!silent) {
+        setLoading(true);
+      }
       try {
         const res = await api.get<T>(url);
+        cache.set(url, res.data);
         setData(res.data);
         setError(null);
       } catch (e: any) {
-        if (!silent) setError(e?.response?.data?.message || 'Ошибка загрузки');
+        if (!hasCache && !silent) {
+          setError(e?.response?.data?.message || 'Ошибка загрузки');
+        }
       } finally {
-        if (!silent) setLoading(false);
+        setLoading(false);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [url, ...deps],
   );
 
-  // первичная загрузка (со спиннером)
+  // первичная загрузка
   useEffect(() => {
     load(false);
   }, [load]);
@@ -71,5 +97,23 @@ export function useFetch<T>(url: string | null, opts: Options = {}) {
   /** Тихая перезагрузка (для согласования после оптимистичной мутации) */
   const reload = useCallback(() => load(true), [load]);
 
-  return { data, loading, error, reload, setData };
+  /** Обновление данных + синхронизация кэша (для оптимистичных мутаций) */
+  const updateData = useCallback(
+    (updater: Updater<T>) => {
+      setData((prev) => {
+        const next =
+          typeof updater === 'function'
+            ? (updater as (p: T | null) => T | null)(prev)
+            : updater;
+        if (url) {
+          if (next == null) cache.delete(url);
+          else cache.set(url, next);
+        }
+        return next;
+      });
+    },
+    [url],
+  );
+
+  return { data, loading, error, reload, setData: updateData };
 }
