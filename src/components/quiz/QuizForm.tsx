@@ -120,13 +120,17 @@ export function QuizForm() {
     <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
       {/* Левая часть — шаги формы (светлая карточка) */}
       <div className="card-light p-6 text-navy-900 sm:p-8">
-        {/* Honeypot — невидимая ловушка для ботов */}
+        {/* Honeypot — невидимая ловушка для ботов.
+            Имя поля НЕ должно совпадать с реальным (company/email/name),
+            иначе браузер автозаполнит его и заявка ошибочно уйдёт в спам. */}
         <input
           type="text"
-          name="company"
+          name="hp_contact_field"
           tabIndex={-1}
           autoComplete="off"
           aria-hidden="true"
+          data-lpignore="true"
+          data-1p-ignore=""
           value={honeypot}
           onChange={(e) => setHoneypot(e.target.value)}
           className="absolute left-[-9999px] h-0 w-0 opacity-0"
