@@ -74,10 +74,12 @@ export function OptionCard({
           {icon}
         </span>
       )}
-      <span className="min-w-0">
-        <span className="block font-semibold text-navy-900">{title}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block break-words font-semibold leading-tight text-navy-900">
+          {title}
+        </span>
         {subtitle && (
-          <span className="block text-sm text-navy-500">{subtitle}</span>
+          <span className="mt-0.5 block text-sm text-navy-500">{subtitle}</span>
         )}
       </span>
       <span
