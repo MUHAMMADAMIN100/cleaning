@@ -5,6 +5,7 @@ import { api } from '../api/client';
 import { useFetch } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 import { Spinner, PageHeader, Badge, Modal } from '../components/ui';
+import { useToast } from '../components/Toast';
 import { OrderModal } from '../components/OrderModal';
 import {
   TAG_LABEL,
@@ -30,7 +31,11 @@ export function ClientCard() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { data, loading, reload } = useFetch<Client>(`/clients/${id}`, [id]);
+  const toast = useToast();
+  const { data, loading, reload, setData } = useFetch<Client>(
+    `/clients/${id}`,
+    { deps: [id] },
+  );
   const [notes, setNotes] = useState<string | null>(null);
   const [tags, setTags] = useState<ClientTag[] | null>(null);
   const [savingMeta, setSavingMeta] = useState(false);
@@ -49,12 +54,19 @@ export function ClientCard() {
     });
 
   const saveMeta = async () => {
+    const nextNotes = curNotes;
+    const nextTags = curTags;
+    // оптимистично применяем изменения сразу
+    setData((c) => (c ? { ...c, notes: nextNotes, tags: nextTags } : c));
+    setNotes(null);
+    setTags(null);
     setSavingMeta(true);
     try {
-      await api.patch(`/clients/${id}`, { notes: curNotes, tags: curTags });
-      await reload();
-      setNotes(null);
-      setTags(null);
+      await api.patch(`/clients/${id}`, { notes: nextNotes, tags: nextTags });
+      toast.success('Сохранено');
+    } catch {
+      toast.error('Не удалось сохранить — изменения отменены');
+      reload();
     } finally {
       setSavingMeta(false);
     }

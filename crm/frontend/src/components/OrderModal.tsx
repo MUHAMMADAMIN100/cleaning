@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { Modal, Badge } from './ui';
+import { useToast } from './Toast';
 import {
   STAGE_LABEL,
   STAGE_ORDER,
@@ -16,9 +17,12 @@ interface Props {
   orderId: string | null;
   onClose: () => void;
   onUpdated: () => void;
+  /** Оптимистичное обновление доски до ответа сервера */
+  onOptimistic?: (orderId: string, patch: Partial<Order>) => void;
 }
 
-export function OrderModal({ orderId, onClose, onUpdated }: Props) {
+export function OrderModal({ orderId, onClose, onUpdated, onOptimistic }: Props) {
+  const toast = useToast();
   const [order, setOrder] = useState<Order | null>(null);
   const [cleaners, setCleaners] = useState<Cleaner[]>([]);
   const [stage, setStage] = useState<FunnelStage>('NEW');
@@ -48,17 +52,32 @@ export function OrderModal({ orderId, onClose, onUpdated }: Props) {
 
   const save = async () => {
     if (!order) return;
-    setSaving(true);
-    setError('');
+    if (stage === 'REJECTED' && !rejectionReason.trim()) {
+      setError('Укажите причину отказа');
+      return;
+    }
+
+    // 1) Оптимистично двигаем карточку на доске и закрываем окно — без ожидания
+    const newFinal = finalPrice !== '' ? Number(finalPrice) : order.finalPrice;
+    onOptimistic?.(order.id, {
+      stage,
+      finalPrice: newFinal,
+      scheduledDate: scheduledDate || order.scheduledDate,
+      rejectionReason: stage === 'REJECTED' ? rejectionReason : order.rejectionReason,
+      cleaners: cleaners
+        .filter((c) => selectedCleaners.includes(c.id))
+        .map((c) => ({ id: c.id, fullName: c.fullName })),
+    });
+    onClose();
+
+    // 2) Запросы уходят в фоне; при ошибке — откат через reload + тост
     try {
-      // 1) цена/назначение команды
       if (finalPrice !== '' && Number(finalPrice) !== order.finalPrice) {
         await api.patch(`/orders/${order.id}`, { finalPrice: Number(finalPrice) });
       }
       await api.patch(`/orders/${order.id}/cleaners`, {
         cleanerIds: selectedCleaners,
       });
-      // 2) смена этапа (с побочными эффектами на бэке)
       if (stage !== order.stage || stage === 'REJECTED') {
         await api.patch(`/orders/${order.id}/stage`, {
           stage,
@@ -69,11 +88,9 @@ export function OrderModal({ orderId, onClose, onUpdated }: Props) {
         await api.patch(`/orders/${order.id}`, { scheduledDate });
       }
       onUpdated();
-      onClose();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Ошибка сохранения');
-    } finally {
-      setSaving(false);
+      toast.error(e?.response?.data?.message || 'Не удалось сохранить заказ');
+      onUpdated(); // откат к серверному состоянию
     }
   };
 

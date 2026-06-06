@@ -3,15 +3,24 @@ import { Plus, ShieldCheck, UserRound } from 'lucide-react';
 import { api } from '../api/client';
 import { useFetch } from '../api/hooks';
 import { Spinner, PageHeader, Badge, Modal, PasswordInput } from '../components/ui';
+import { useToast } from '../components/Toast';
 import type { Manager, Role } from '../types';
 
 export function UsersPage() {
-  const { data, loading, reload } = useFetch<Manager[]>('/users');
+  const toast = useToast();
+  const { data, loading, reload, setData } = useFetch<Manager[]>('/users');
   const [showAdd, setShowAdd] = useState(false);
 
   const toggleActive = async (id: string, isActive: boolean) => {
-    await api.patch(`/users/${id}/active`, { isActive });
-    reload();
+    setData((u) =>
+      u ? u.map((x) => (x.id === id ? { ...x, isActive } : x)) : u,
+    );
+    try {
+      await api.patch(`/users/${id}/active`, { isActive });
+    } catch {
+      toast.error('Не удалось изменить статус сотрудника');
+      reload();
+    }
   };
 
   return (

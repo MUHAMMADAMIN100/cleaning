@@ -3,17 +3,28 @@ import { Plus, Trash2, UserRound } from 'lucide-react';
 import { api } from '../api/client';
 import { useFetch } from '../api/hooks';
 import { Spinner, PageHeader, Modal, EmptyState, Badge } from '../components/ui';
+import { useToast } from '../components/Toast';
 import { STAGE_COLOR, STAGE_LABEL, formatDateTime } from '../lib/labels';
 import type { Cleaner, Order } from '../types';
 
 export function Team() {
-  const { data, loading, reload } = useFetch<Cleaner[]>('/cleaners');
-  const { data: dayTasks } = useFetch<Order[]>('/cleaners/team-tasks');
+  const toast = useToast();
+  const { data, loading, reload, setData } = useFetch<Cleaner[]>('/cleaners', {
+    pollMs: 20000,
+  });
+  const { data: dayTasks } = useFetch<Order[]>('/cleaners/team-tasks', {
+    pollMs: 20000,
+  });
   const [showAdd, setShowAdd] = useState(false);
 
   const remove = async (id: string) => {
-    await api.delete(`/cleaners/${id}`);
-    reload();
+    setData((cl) => (cl ? cl.filter((c) => c.id !== id) : cl));
+    try {
+      await api.delete(`/cleaners/${id}`);
+    } catch {
+      toast.error('Не удалось удалить клинера');
+      reload();
+    }
   };
 
   return (

@@ -7,11 +7,37 @@ import {
   TYPE_LABEL,
   formatPrice,
 } from '../lib/labels';
-import type { BoardColumn } from '../types';
+import type { BoardColumn, Order } from '../types';
 
 export function Funnel() {
-  const { data, loading, reload } = useFetch<BoardColumn[]>('/orders/board');
+  const { data, loading, reload, setData } = useFetch<BoardColumn[]>(
+    '/orders/board',
+    { pollMs: 10000 },
+  );
   const [openId, setOpenId] = useState<string | null>(null);
+
+  // Оптимистичное перемещение карточки между этапами (до ответа сервера)
+  const applyPatch = (orderId: string, patch: Partial<Order>) => {
+    setData((cols) => {
+      if (!cols) return cols;
+      let moved: Order | undefined;
+      const without = cols.map((c) => ({
+        ...c,
+        orders: c.orders.filter((o) => {
+          if (o.id === orderId) {
+            moved = { ...o, ...patch };
+            return false;
+          }
+          return true;
+        }),
+      }));
+      if (!moved) return cols;
+      const target = patch.stage ?? moved.stage;
+      return without.map((c) =>
+        c.stage === target ? { ...c, orders: [moved as Order, ...c.orders] } : c,
+      );
+    });
+  };
 
   if (loading || !data) return <Spinner />;
 
@@ -78,6 +104,7 @@ export function Funnel() {
         orderId={openId}
         onClose={() => setOpenId(null)}
         onUpdated={reload}
+        onOptimistic={applyPatch}
       />
     </div>
   );

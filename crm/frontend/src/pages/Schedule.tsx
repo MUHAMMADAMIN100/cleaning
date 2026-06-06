@@ -3,6 +3,7 @@ import { Plus, Trash2, MapPin, Truck, CalendarClock } from 'lucide-react';
 import { api } from '../api/client';
 import { useFetch } from '../api/hooks';
 import { Spinner, PageHeader, Modal, EmptyState } from '../components/ui';
+import { useToast } from '../components/Toast';
 import { SCHEDULE_LABEL, formatDateTime } from '../lib/labels';
 import type { ScheduleEvent, ScheduleType } from '../types';
 
@@ -13,12 +14,21 @@ const TYPE_ICON: Record<ScheduleType, typeof MapPin> = {
 };
 
 export function Schedule() {
-  const { data, loading, reload } = useFetch<ScheduleEvent[]>('/schedule');
+  const toast = useToast();
+  const { data, loading, reload, setData } = useFetch<ScheduleEvent[]>(
+    '/schedule',
+    { pollMs: 20000 },
+  );
   const [showAdd, setShowAdd] = useState(false);
 
   const remove = async (id: string) => {
-    await api.delete(`/schedule/${id}`);
-    reload();
+    setData((ev) => (ev ? ev.filter((e) => e.id !== id) : ev));
+    try {
+      await api.delete(`/schedule/${id}`);
+    } catch {
+      toast.error('Не удалось удалить событие');
+      reload();
+    }
   };
 
   // группировка по дате

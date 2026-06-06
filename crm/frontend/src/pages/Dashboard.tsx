@@ -23,9 +23,13 @@ interface Summary {
 
 export function Dashboard() {
   const { user } = useAuth();
-  const { data, loading } = useFetch<Summary>('/analytics/summary');
-  const { data: orders } = useFetch<Order[]>('/orders?stage=NEW');
-  const { data: tasks } = useFetch<Task[]>('/tasks');
+  const { data, loading } = useFetch<Summary>('/analytics/summary', {
+    pollMs: 15000,
+  });
+  const { data: orders } = useFetch<Order[]>('/orders?stage=NEW', {
+    pollMs: 15000,
+  });
+  const { data: tasks } = useFetch<Task[]>('/tasks', { pollMs: 20000 });
 
   if (loading || !data) return <Spinner />;
 

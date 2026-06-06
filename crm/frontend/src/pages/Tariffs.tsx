@@ -3,9 +3,11 @@ import { Save } from 'lucide-react';
 import { api } from '../api/client';
 import { useFetch } from '../api/hooks';
 import { Spinner, PageHeader } from '../components/ui';
+import { useToast } from '../components/Toast';
 import type { Tariffs as TariffsData } from '../types';
 
 export function Tariffs() {
+  const toast = useToast();
   const { data, loading, reload } = useFetch<TariffsData>('/tariffs');
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [extraPrices, setExtraPrices] = useState<Record<string, number>>({});
@@ -21,12 +23,22 @@ export function Tariffs() {
   if (loading || !data) return <Spinner />;
 
   const saveTariff = async (key: string) => {
-    await api.patch(`/tariffs/tariff/${key}`, { pricePerSqm: prices[key] });
-    flash();
+    try {
+      await api.patch(`/tariffs/tariff/${key}`, { pricePerSqm: prices[key] });
+      flash();
+    } catch {
+      toast.error('Не удалось сохранить цену');
+      reload();
+    }
   };
   const saveExtra = async (key: string) => {
-    await api.patch(`/tariffs/extra/${key}`, { price: extraPrices[key] });
-    flash();
+    try {
+      await api.patch(`/tariffs/extra/${key}`, { price: extraPrices[key] });
+      flash();
+    } catch {
+      toast.error('Не удалось сохранить цену');
+      reload();
+    }
   };
   const flash = () => {
     setSaved(true);

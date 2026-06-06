@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { useFetch } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 import { Spinner, PageHeader, Badge, Modal, EmptyState } from '../components/ui';
+import { useToast } from '../components/Toast';
 import {
   PRIORITY_LABEL,
   PRIORITY_COLOR,
@@ -16,17 +17,35 @@ const STATUSES: TaskStatus[] = ['OPEN', 'IN_PROGRESS', 'DONE'];
 
 export function Tasks() {
   const { user } = useAuth();
+  const toast = useToast();
   const isDirector = user?.role === 'DIRECTOR';
-  const { data, loading, reload } = useFetch<Task[]>('/tasks');
+  const { data, loading, reload, setData } = useFetch<Task[]>('/tasks', {
+    pollMs: 20000,
+  });
   const [showAdd, setShowAdd] = useState(false);
 
+  // оптимистично: меняем статус сразу, запрос в фоне
   const setStatus = async (id: string, status: TaskStatus) => {
-    await api.patch(`/tasks/${id}/status`, { status });
-    reload();
+    setData((tasks) =>
+      tasks ? tasks.map((t) => (t.id === id ? { ...t, status } : t)) : tasks,
+    );
+    try {
+      await api.patch(`/tasks/${id}/status`, { status });
+    } catch {
+      toast.error('Не удалось изменить статус задачи');
+      reload();
+    }
   };
+
+  // оптимистично: убираем задачу сразу
   const remove = async (id: string) => {
-    await api.delete(`/tasks/${id}`);
-    reload();
+    setData((tasks) => (tasks ? tasks.filter((t) => t.id !== id) : tasks));
+    try {
+      await api.delete(`/tasks/${id}`);
+    } catch {
+      toast.error('Не удалось удалить задачу');
+      reload();
+    }
   };
 
   return (

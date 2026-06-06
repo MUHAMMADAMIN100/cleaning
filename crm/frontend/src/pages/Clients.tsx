@@ -33,7 +33,7 @@ export function Clients() {
 
   const { data, loading, reload } = useFetch<Client[]>(
     `/clients?${query.toString()}`,
-    [search, tag, source, sort],
+    { deps: [search, tag, source, sort], pollMs: 15000 },
   );
 
   const exportCsv = async () => {
