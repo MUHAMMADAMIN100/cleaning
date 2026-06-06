@@ -1,0 +1,153 @@
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
+import {
+  AccessMethod,
+  CleaningType,
+  LeadSource,
+  NotificationType,
+  Role,
+} from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { ClientsService } from '../clients/clients.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { LeadIntakeDto } from './dto/intake.dto';
+
+const TYPE_MAP: Record<string, CleaningType> = {
+  maintenance: CleaningType.MAINTENANCE,
+  general: CleaningType.GENERAL,
+  post_renovation: CleaningType.POST_RENOVATION,
+};
+
+@Injectable()
+export class LeadsService {
+  private readonly logger = new Logger('LeadsIntake');
+  // простой rate-limit: телефон -> время последней заявки
+  private recent = new Map<string, number>();
+
+  constructor(
+    private prisma: PrismaService,
+    private clients: ClientsService,
+    private notifications: NotificationsService,
+  ) {}
+
+  /** Приём заявки с лендинга: дедуп клиента, создание заказа, авто-назначение, уведомление */
+  async intake(dto: LeadIntakeDto) {
+    // 1. Антиспам honeypot
+    if (dto.company && dto.company.trim() !== '') {
+      this.logger.warn('Honeypot сработал — заявка отклонена');
+      return { ok: true }; // тихо игнорируем бота
+    }
+
+    if (!dto.contact?.phone || !dto.contact?.name) {
+      throw new BadRequestException('Не указаны имя или телефон');
+    }
+
+    // 2. Rate-limit: не чаще раза в 20 сек с одного телефона
+    const phoneKey = dto.contact.phone.replace(/\D/g, '');
+    const last = this.recent.get(phoneKey);
+    const nowMs = Date.now();
+    if (last && nowMs - last < 20_000) {
+      throw new BadRequestException('Слишком частые заявки, попробуйте позже');
+    }
+    this.recent.set(phoneKey, nowMs);
+
+    // 3. Выбираем наименее загруженного менеджера
+    const managerId = await this.pickManager();
+
+    // 4. Клиент (защита от дублей по телефону)
+    const { client } = await this.clients.findOrCreateByPhone({
+      fullName: dto.contact.name,
+      phone: dto.contact.phone,
+      source: LeadSource.SITE,
+      managerId: managerId ?? undefined,
+    });
+
+    // 5. Заказ на этапе «Новая заявка»
+    const cleaningType = TYPE_MAP[dto.calculator?.cleaningTypeId] ?? CleaningType.GENERAL;
+    const preferred =
+      dto.quiz?.date && dto.quiz?.time
+        ? new Date(`${dto.quiz.date}T${dto.quiz.time}`)
+        : dto.quiz?.date
+          ? new Date(dto.quiz.date)
+          : null;
+
+    const order = await this.prisma.order.create({
+      data: {
+        clientId: client.id,
+        managerId,
+        stage: 'NEW',
+        source: LeadSource.SITE,
+        cleaningType,
+        area: dto.calculator?.area ?? 0,
+        estimatedPrice: dto.total ?? 0,
+        address: dto.contact.address,
+        preferredDate: preferred,
+        preferredTime: dto.quiz?.time,
+        hasUtilities:
+          dto.quiz?.hasUtilities === 'yes'
+            ? true
+            : dto.quiz?.hasUtilities === 'no'
+              ? false
+              : null,
+        accessMethod:
+          dto.quiz?.access === 'keys'
+            ? AccessMethod.KEYS
+            : dto.quiz?.access === 'onsite'
+              ? AccessMethod.ONSITE
+              : null,
+        comment: dto.quiz?.comment,
+        extras: dto.calculator?.extras ?? undefined,
+        isLarge: (dto.total ?? 0) >= 2000,
+      },
+    });
+
+    // 6. Уведомляем назначенного менеджера (или всех руководителей, если менеджеров нет)
+    if (managerId) {
+      await this.notifications.notify({
+        userId: managerId,
+        type: NotificationType.NEW_LEAD,
+        title: 'Новая заявка с сайта',
+        message: `${client.fullName} · ${dto.calculator?.area ?? 0} м² · ${dto.total ?? 0} сомони`,
+        orderId: order.id,
+      });
+    } else {
+      await this.notifications.notifyDirectors({
+        type: NotificationType.NEW_LEAD,
+        title: 'Новая заявка с сайта (без менеджера)',
+        message: `${client.fullName} · ${dto.total ?? 0} сомони`,
+        orderId: order.id,
+      });
+    }
+
+    this.logger.log(`Новая заявка: ${client.fullName} (${order.id})`);
+    return { ok: true, orderId: order.id };
+  }
+
+  /** Менеджер с наименьшим числом активных заказов */
+  private async pickManager(): Promise<string | null> {
+    const managers = await this.prisma.user.findMany({
+      where: { role: Role.MANAGER, isActive: true },
+      select: { id: true },
+    });
+    if (managers.length === 0) return null;
+
+    let best = managers[0].id;
+    let bestCount = Infinity;
+    for (const m of managers) {
+      const count = await this.prisma.order.count({
+        where: {
+          managerId: m.id,
+          stage: { notIn: ['PAID', 'REJECTED'] },
+        },
+      });
+      if (count < bestCount) {
+        bestCount = count;
+        best = m.id;
+      }
+    }
+    return best;
+  }
+}

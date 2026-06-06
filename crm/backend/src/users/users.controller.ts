@@ -1,0 +1,45 @@
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { Role } from '@prisma/client';
+import { UsersService } from './users.service';
+import { CreateUserDto } from './dto/create-user.dto';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Controller('users')
+export class UsersController {
+  constructor(private service: UsersService) {}
+
+  // менеджеров видят оба (для назначения), полный список — только руководитель
+  @Get('managers')
+  managers() {
+    return this.service.findManagers();
+  }
+
+  @Roles(Role.DIRECTOR)
+  @Get()
+  findAll() {
+    return this.service.findAll();
+  }
+
+  @Roles(Role.DIRECTOR)
+  @Post()
+  create(@Body() dto: CreateUserDto) {
+    return this.service.create(dto);
+  }
+
+  @Roles(Role.DIRECTOR)
+  @Patch(':id/active')
+  setActive(@Param('id') id: string, @Body('isActive') isActive: boolean) {
+    return this.service.setActive(id, isActive);
+  }
+}

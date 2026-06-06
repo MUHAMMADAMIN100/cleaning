@@ -1,0 +1,25 @@
+version: '3.9'
+
+# Локальная база данных PostgreSQL для разработки CRM «Archidea Sistem».
+# Запуск:  docker compose up -d
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: archidea_crm_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: archidea
+      POSTGRES_PASSWORD: archidea_secret
+      POSTGRES_DB: archidea_crm
+    ports:
+      - '5433:5432'
+    volumes:
+      - archidea_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U archidea -d archidea_crm']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  archidea_pgdata:
