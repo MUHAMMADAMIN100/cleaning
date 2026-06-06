@@ -14,7 +14,7 @@ export function Funnel() {
     '/orders/board',
     { pollMs: 10000 },
   );
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openOrder, setOpenOrder] = useState<Order | null>(null);
 
   // Оптимистичное перемещение карточки между этапами (до ответа сервера)
   const applyPatch = (orderId: string, patch: Partial<Order>) => {
@@ -62,7 +62,7 @@ export function Funnel() {
               {col.orders.map((o) => (
                 <button
                   key={o.id}
-                  onClick={() => setOpenId(o.id)}
+                  onClick={() => setOpenOrder(o)}
                   className="card w-full p-3.5 text-left transition-shadow hover:shadow-lg"
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -101,8 +101,9 @@ export function Funnel() {
       </div>
 
       <OrderModal
-        orderId={openId}
-        onClose={() => setOpenId(null)}
+        orderId={openOrder?.id ?? null}
+        initial={openOrder ?? undefined}
+        onClose={() => setOpenOrder(null)}
         onUpdated={reload}
         onOptimistic={applyPatch}
       />

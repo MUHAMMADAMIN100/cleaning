@@ -41,7 +41,7 @@ export function ClientCard() {
   const [notes, setNotes] = useState<string | null>(null);
   const [tags, setTags] = useState<ClientTag[] | null>(null);
   const [savingMeta, setSavingMeta] = useState(false);
-  const [openOrder, setOpenOrder] = useState<string | null>(null);
+  const [openOrder, setOpenOrder] = useState<Order | null>(null);
   const [showAddOrder, setShowAddOrder] = useState(false);
 
   if (loading || !data) return <Spinner />;
@@ -54,6 +54,20 @@ export function ClientCard() {
       const base = prev ?? data.tags;
       return base.includes(t) ? base.filter((x) => x !== t) : [...base, t];
     });
+
+  // оптимистично: правки заказа отражаются в истории сразу
+  const patchOrder = (orderId: string, patch: Partial<Order>) => {
+    setData((c) =>
+      c
+        ? {
+            ...c,
+            orders: (c.orders ?? []).map((o) =>
+              o.id === orderId ? { ...o, ...patch } : o,
+            ),
+          }
+        : c,
+    );
+  };
 
   // оптимистично: новый заказ появляется в истории сразу
   const createOrder = (payload: {
@@ -198,7 +212,7 @@ export function ClientCard() {
               {(data.orders ?? []).map((o) => (
                 <button
                   key={o.id}
-                  onClick={() => setOpenOrder(o.id)}
+                  onClick={() => setOpenOrder(o)}
                   className="flex w-full items-center justify-between rounded-xl border border-navy-100 p-4 text-left hover:bg-navy-50"
                 >
                   <div>
@@ -238,9 +252,11 @@ export function ClientCard() {
       </div>
 
       <OrderModal
-        orderId={openOrder}
+        orderId={openOrder?.id ?? null}
+        initial={openOrder ?? undefined}
         onClose={() => setOpenOrder(null)}
         onUpdated={reload}
+        onOptimistic={patchOrder}
       />
       {showAddOrder && (
         <AddOrderModal

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
 import { Modal, Badge } from './ui';
 import { useToast } from './Toast';
@@ -15,13 +15,21 @@ import type { Cleaner, FunnelStage, Order } from '../types';
 
 interface Props {
   orderId: string | null;
+  /** Данные заказа из списка/доски — для мгновенного открытия без ожидания */
+  initial?: Order;
   onClose: () => void;
   onUpdated: () => void;
   /** Оптимистичное обновление доски до ответа сервера */
   onOptimistic?: (orderId: string, patch: Partial<Order>) => void;
 }
 
-export function OrderModal({ orderId, onClose, onUpdated, onOptimistic }: Props) {
+export function OrderModal({
+  orderId,
+  initial,
+  onClose,
+  onUpdated,
+  onOptimistic,
+}: Props) {
   const toast = useToast();
   const [order, setOrder] = useState<Order | null>(null);
   const [cleaners, setCleaners] = useState<Cleaner[]>([]);
@@ -30,24 +38,52 @@ export function OrderModal({ orderId, onClose, onUpdated, onOptimistic }: Props)
   const [scheduledDate, setScheduledDate] = useState('');
   const [finalPrice, setFinalPrice] = useState<string>('');
   const [selectedCleaners, setSelectedCleaners] = useState<string[]>([]);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const seededRef = useRef(false);
+
+  // заполняем редактируемые поля из заказа
+  const seedEditable = (o: Order) => {
+    setStage(o.stage);
+    setRejectionReason(o.rejectionReason ?? '');
+    setScheduledDate(o.scheduledDate?.slice(0, 10) ?? '');
+    setFinalPrice(o.finalPrice != null ? String(o.finalPrice) : '');
+    setSelectedCleaners((o.cleaners ?? []).map((x) => x.id));
+  };
 
   useEffect(() => {
-    if (!orderId) return;
+    if (!orderId) {
+      setOrder(null);
+      seededRef.current = false;
+      return;
+    }
     setError('');
+    seededRef.current = false;
+
+    // 1) мгновенно показываем то, что уже знаем из списка/доски
+    if (initial) {
+      setOrder(initial);
+      seedEditable(initial);
+      seededRef.current = true;
+    } else {
+      setOrder(null);
+    }
+
+    // 2) в фоне догружаем полные детали + список клинеров
     Promise.all([
       api.get<Order>(`/orders/${orderId}`),
       api.get<Cleaner[]>('/cleaners'),
-    ]).then(([o, c]) => {
-      setOrder(o.data);
-      setStage(o.data.stage);
-      setRejectionReason(o.data.rejectionReason ?? '');
-      setScheduledDate(o.data.scheduledDate?.slice(0, 10) ?? '');
-      setFinalPrice(o.data.finalPrice != null ? String(o.data.finalPrice) : '');
-      setSelectedCleaners((o.data.cleaners ?? []).map((x) => x.id));
-      setCleaners(c.data);
-    });
+    ])
+      .then(([o, c]) => {
+        setOrder(o.data);
+        // редактируемые поля не перетираем, если уже заполнили из initial
+        if (!seededRef.current) {
+          seedEditable(o.data);
+          seededRef.current = true;
+        }
+        setCleaners(c.data);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
 
   const save = async () => {
@@ -218,8 +254,8 @@ export function OrderModal({ orderId, onClose, onUpdated, onOptimistic }: Props)
               <button onClick={onClose} className="btn-ghost">
                 Отмена
               </button>
-              <button onClick={save} disabled={saving} className="btn-primary">
-                {saving ? 'Сохранение…' : 'Сохранить'}
+              <button onClick={save} className="btn-primary">
+                Сохранить
               </button>
             </div>
           </div>
