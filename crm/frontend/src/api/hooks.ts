@@ -20,6 +20,18 @@ export function clearFetchCache() {
   cache.clear();
 }
 
+/**
+ * Прогрев кэша в фоне (после входа) — чтобы даже первый заход
+ * в раздел открывался мгновенно, без спиннера.
+ */
+export function prefetch(url: string) {
+  if (cache.has(url)) return;
+  api
+    .get(url)
+    .then((r) => cache.set(url, r.data))
+    .catch(() => {});
+}
+
 type Updater<T> = T | null | ((prev: T | null) => T | null);
 
 /**

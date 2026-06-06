@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { prefetch } from '../api/hooks';
 import {
   LayoutDashboard,
   Filter,
@@ -46,6 +47,24 @@ export function Layout() {
   const items = NAV.filter(
     (i) => !i.roles || (user && i.roles.includes(user.role)),
   );
+
+  // Прогрев кэша всех разделов после входа — переходы будут мгновенными
+  useEffect(() => {
+    if (!user) return;
+    const urls = [
+      '/orders/board',
+      '/clients?sort=recent',
+      '/analytics/summary',
+      '/analytics/full',
+      '/tasks',
+      '/schedule',
+      '/cleaners',
+      '/cleaners/team-tasks',
+      '/users/managers',
+    ];
+    if (user.role === 'DIRECTOR') urls.push('/tariffs', '/users');
+    urls.forEach(prefetch);
+  }, [user]);
 
   const handleLogout = async () => {
     await logout();
