@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Download, Search } from 'lucide-react';
 import { api } from '../api/client';
@@ -72,6 +72,20 @@ export function Clients() {
         setData((list) => (list ? list.filter((c) => c.id !== id) : list));
       });
   };
+
+  // Пагинация по 10 строк
+  const PER_PAGE = 10;
+  const [page, setPage] = useState(1);
+  useEffect(() => {
+    setPage(1);
+  }, [search, tag, source, sort]);
+  const total = data?.length ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / PER_PAGE));
+  const currentPage = Math.min(page, pageCount);
+  const pageData = (data ?? []).slice(
+    (currentPage - 1) * PER_PAGE,
+    currentPage * PER_PAGE,
+  );
 
   const exportCsv = async () => {
     const res = await api.get('/clients/export', { responseType: 'blob' });
@@ -153,7 +167,7 @@ export function Clients() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-navy-50">
-                {data.map((c) => (
+                {pageData.map((c) => (
                   <tr
                     key={c.id}
                     onClick={() => navigate(`/clients/${c.id}`)}
@@ -191,6 +205,55 @@ export function Clients() {
               </tbody>
             </table>
           </div>
+
+          {/* Пагинация */}
+          {pageCount > 1 && (
+            <div className="flex items-center justify-between border-t border-navy-50 px-4 py-3 text-sm">
+              <span className="text-navy-400">
+                Стр. {currentPage} из {pageCount} · всего {total}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage <= 1}
+                  className="rounded-lg border border-navy-200 px-3 py-1.5 text-navy-600 transition hover:bg-navy-50 disabled:opacity-40"
+                >
+                  Назад
+                </button>
+                {Array.from({ length: pageCount }, (_, i) => i + 1)
+                  .filter(
+                    (p) =>
+                      p === 1 ||
+                      p === pageCount ||
+                      Math.abs(p - currentPage) <= 1,
+                  )
+                  .map((p, idx, arr) => (
+                    <span key={p} className="flex items-center">
+                      {idx > 0 && arr[idx - 1] !== p - 1 && (
+                        <span className="px-1 text-navy-300">…</span>
+                      )}
+                      <button
+                        onClick={() => setPage(p)}
+                        className={`min-w-[34px] rounded-lg px-2.5 py-1.5 font-medium transition ${
+                          p === currentPage
+                            ? 'bg-navy-500 text-white'
+                            : 'border border-navy-200 text-navy-600 hover:bg-navy-50'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    </span>
+                  ))}
+                <button
+                  onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+                  disabled={currentPage >= pageCount}
+                  className="rounded-lg border border-navy-200 px-3 py-1.5 text-navy-600 transition hover:bg-navy-50 disabled:opacity-40"
+                >
+                  Вперёд
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

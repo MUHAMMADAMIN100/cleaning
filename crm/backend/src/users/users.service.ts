@@ -166,6 +166,45 @@ export class UsersService {
     return [];
   }
 
+  /** Полное редактирование сотрудника руководителем. */
+  async update(
+    id: string,
+    dto: {
+      fullName?: string;
+      login?: string;
+      phone?: string;
+      role?: Role;
+      isActive?: boolean;
+      password?: string;
+    },
+  ) {
+    const exists = await this.prisma.user.findUnique({ where: { id } });
+    if (!exists) throw new NotFoundException('Сотрудник не найден');
+
+    const data: any = {};
+    if (dto.fullName !== undefined) data.fullName = dto.fullName;
+    if (dto.phone !== undefined) data.phone = dto.phone || null;
+    if (dto.role !== undefined) data.role = dto.role;
+    if (dto.isActive !== undefined) data.isActive = dto.isActive;
+    if (dto.login) {
+      const login = dto.login.trim().toLowerCase();
+      const taken = await this.prisma.user.findUnique({ where: { login } });
+      if (taken && taken.id !== id) {
+        throw new BadRequestException('Логин уже занят');
+      }
+      data.login = login;
+    }
+    if (dto.password && dto.password.length >= 4) {
+      data.passwordHash = await AuthService.hashPassword(dto.password);
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data,
+      select: SAFE_SELECT,
+    });
+  }
+
   async setActive(id: string, isActive: boolean) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('Пользователь не найден');

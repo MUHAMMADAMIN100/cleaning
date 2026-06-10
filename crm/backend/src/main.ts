@@ -6,6 +6,9 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // За прокси Railway — чтобы Secure-cookie и protocol определялись верно
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   app.use(cookieParser());
   app.setGlobalPrefix('api');
   app.useGlobalPipes(

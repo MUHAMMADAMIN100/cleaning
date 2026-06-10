@@ -5,7 +5,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { api, setToken } from '../api/client';
+import { api } from '../api/client';
 import { clearFetchCache } from '../api/hooks';
 import type { AuthUser } from '../types';
 
@@ -31,19 +31,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (login: string, password: string) => {
-    const res = await api.post<{ user: AuthUser; token: string }>(
-      '/auth/login',
-      { login, password },
-    );
+    const res = await api.post<{ user: AuthUser }>('/auth/login', {
+      login,
+      password,
+    });
     clearFetchCache(); // чистим возможный кэш прошлой сессии
-    setToken(res.data.token);
     setUser(res.data.user);
   };
 
   const logout = async () => {
     // мгновенный выход; запрос на сервер — в фоне
     clearFetchCache();
-    setToken(null);
     setUser(null);
     api.post('/auth/logout').catch(() => {});
   };

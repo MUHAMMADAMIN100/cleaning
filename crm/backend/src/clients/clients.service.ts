@@ -132,6 +132,12 @@ export class ClientsService {
     });
   }
 
+  async remove(user: AuthUser, id: string) {
+    await this.getOne(user, id); // проверка доступа
+    await this.prisma.client.delete({ where: { id } }); // заказы — каскадно
+    return { ok: true };
+  }
+
   /** Экспорт в CSV */
   async exportCsv(user: AuthUser): Promise<string> {
     const where: Prisma.ClientWhereInput =

@@ -18,6 +18,15 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
 const COOKIE_NAME = 'access_token';
 
+// Жёсткие флаги cookie: httpOnly (JS не читает) + Secure + SameSite=None
+// (кросс-доменная связка Vercel ↔ Railway по HTTPS).
+const COOKIE_OPTS = {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'none' as const,
+  path: '/',
+};
+
 @Controller('auth')
 export class AuthController {
   constructor(private auth: AuthService) {}
@@ -30,18 +39,16 @@ export class AuthController {
   ) {
     const { token, user } = await this.auth.login(dto);
     res.cookie(COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      ...COOKIE_OPTS,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-    // токен также возвращаем (фронт может хранить для Authorization-заголовка)
-    return { user, token };
+    // токен НЕ возвращаем в теле — авторизация только через httpOnly-cookie
+    return { user };
   }
 
   @Post('logout')
   logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie(COOKIE_NAME);
+    res.clearCookie(COOKIE_NAME, COOKIE_OPTS);
     return { ok: true };
   }
 

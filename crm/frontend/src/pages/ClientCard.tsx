@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Phone, Plus, Save } from 'lucide-react';
+import { ArrowLeft, Phone, Plus, Save, Trash2 } from 'lucide-react';
 import { api } from '../api/client';
 import { useFetch } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
@@ -125,6 +125,23 @@ export function ClientCard() {
     }
   };
 
+  const removeClient = async () => {
+    if (!data) return;
+    if (
+      !window.confirm(
+        `Удалить клиента «${data.fullName}» и все его заказы безвозвратно?`,
+      )
+    )
+      return;
+    try {
+      await api.delete(`/clients/${data.id}`);
+      toast.success('Клиент удалён');
+      navigate('/clients');
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Не удалось удалить клиента');
+    }
+  };
+
   return (
     <div>
       <button
@@ -138,10 +155,19 @@ export function ClientCard() {
         title={data.fullName}
         subtitle={SOURCE_LABEL[data.source] + ' · клиент'}
         action={
-          <a href={`tel:${data.phone}`} className="btn-primary">
-            <Phone className="h-4 w-4" />
-            {data.phone}
-          </a>
+          <div className="flex items-center gap-2">
+            <a href={`tel:${data.phone}`} className="btn-primary">
+              <Phone className="h-4 w-4" />
+              {data.phone}
+            </a>
+            <button
+              onClick={removeClient}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
+            >
+              <Trash2 className="h-4 w-4" />
+              Удалить
+            </button>
+          </div>
         }
       />
 

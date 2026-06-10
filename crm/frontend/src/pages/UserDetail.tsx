@@ -11,9 +11,20 @@ import {
   UsersRound,
   CheckSquare,
   ChevronRight,
+  Pencil,
 } from 'lucide-react';
+import { api } from '../api/client';
 import { useFetch } from '../api/hooks';
-import { Spinner, PageHeader, Badge, Modal, EmptyState } from '../components/ui';
+import { useAuth } from '../auth/AuthContext';
+import {
+  Spinner,
+  PageHeader,
+  Badge,
+  Modal,
+  EmptyState,
+  PasswordInput,
+} from '../components/ui';
+import { useToast } from '../components/Toast';
 import { formatDate } from '../lib/labels';
 import type { Role } from '../types';
 
@@ -43,9 +54,12 @@ interface ListItem {
 export function UserDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { data, loading, error } = useFetch<UserDetailData>(`/users/${id}`, {
-    deps: [id],
-  });
+  const { user: viewer } = useAuth();
+  const { data, loading, error, reload } = useFetch<UserDetailData>(
+    `/users/${id}`,
+    { deps: [id] },
+  );
+  const [showEdit, setShowEdit] = useState(false);
   const [list, setList] = useState<{ type: string; title: string } | null>(null);
   const { data: items, loading: itemsLoading } = useFetch<ListItem[]>(
     list ? `/users/${id}/list/${list.type}` : null,
@@ -128,6 +142,15 @@ export function UserDetail() {
               </Badge>
             </div>
           </div>
+          {viewer?.role === 'DIRECTOR' && (
+            <button
+              onClick={() => setShowEdit(true)}
+              className="inline-flex items-center gap-1.5 self-start rounded-xl border border-navy-200 px-3 py-2 text-sm font-medium text-navy-700 transition hover:bg-navy-50"
+            >
+              <Pencil className="h-4 w-4" />
+              Редактировать
+            </button>
+          )}
         </div>
 
         <dl className="mt-6 grid gap-x-8 gap-y-3 border-t border-navy-100 pt-5 text-sm sm:grid-cols-2">
@@ -206,6 +229,115 @@ export function UserDetail() {
           </div>
         )}
       </Modal>
+
+      {showEdit && (
+        <EditUserModal
+          user={data}
+          onClose={() => setShowEdit(false)}
+          onSaved={() => {
+            setShowEdit(false);
+            reload();
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function EditUserModal({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: UserDetailData;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const toast = useToast();
+  const [fullName, setFullName] = useState(user.fullName);
+  const [login, setLogin] = useState(user.login);
+  const [phone, setPhone] = useState(user.phone ?? '');
+  const [role, setRole] = useState<Role>(user.role);
+  const [isActive, setIsActive] = useState(user.isActive);
+  const [password, setPassword] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    setSaving(true);
+    try {
+      await api.patch(`/users/${user.id}`, {
+        fullName,
+        login,
+        phone,
+        role,
+        isActive,
+        ...(password ? { password } : {}),
+      });
+      toast.success('Сохранено');
+      onSaved();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Не удалось сохранить');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal open onClose={onClose} title="Редактирование сотрудника">
+      <div className="space-y-3">
+        <div>
+          <label className="label">ФИО</label>
+          <input className="input" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+        </div>
+        <div>
+          <label className="label">Логин</label>
+          <input className="input" value={login} onChange={(e) => setLogin(e.target.value)} />
+        </div>
+        <div>
+          <label className="label">Телефон</label>
+          <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+992 ..." />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">Роль</label>
+            <select className="input" value={role} onChange={(e) => setRole(e.target.value as Role)}>
+              <option value="MANAGER">Менеджер</option>
+              <option value="DIRECTOR">Руководитель</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Статус</label>
+            <select
+              className="input"
+              value={isActive ? '1' : '0'}
+              onChange={(e) => setIsActive(e.target.value === '1')}
+            >
+              <option value="1">Активен</option>
+              <option value="0">Отключён</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label className="label">Новый пароль (необязательно)</label>
+          <PasswordInput
+            value={password}
+            onChange={setPassword}
+            placeholder="оставьте пустым, чтобы не менять"
+          />
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <button onClick={onClose} className="btn-ghost">
+            Отмена
+          </button>
+          <button
+            onClick={submit}
+            disabled={saving || !fullName || !login}
+            className="btn-primary"
+          >
+            {saving ? 'Сохранение…' : 'Сохранить'}
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }

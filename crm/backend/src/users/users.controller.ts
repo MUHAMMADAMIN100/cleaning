@@ -47,6 +47,23 @@ export class UsersController {
     return this.service.setActive(id, isActive);
   }
 
+  @Roles(Role.DIRECTOR)
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body()
+    dto: {
+      fullName?: string;
+      login?: string;
+      phone?: string;
+      role?: Role;
+      isActive?: boolean;
+      password?: string;
+    },
+  ) {
+    return this.service.update(id, dto);
+  }
+
   // Карточка сотрудника / профиль (руководитель — любой, сотрудник — себя)
   @Get(':id')
   getOne(@CurrentUser() user: AuthUser, @Param('id') id: string) {
