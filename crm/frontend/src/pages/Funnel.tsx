@@ -8,6 +8,7 @@ import {
 import { api } from '../api/client';
 import { useFetch } from '../api/hooks';
 import { useToast } from '../components/Toast';
+import { useDialog } from '../components/Dialog';
 import { Spinner, PageHeader, Badge } from '../components/ui';
 import { OrderModal } from '../components/OrderModal';
 import { STAGE_COLOR, TYPE_LABEL, formatPrice } from '../lib/labels';
@@ -15,6 +16,7 @@ import type { BoardColumn, FunnelStage, Order } from '../types';
 
 export function Funnel() {
   const toast = useToast();
+  const dialog = useDialog();
   const { data, loading, reload, setData } = useFetch<BoardColumn[]>(
     '/orders/board',
     { pollMs: 10000 },
@@ -45,7 +47,7 @@ export function Funnel() {
   };
 
   // Перетаскивание карточки в другую колонку = смена этапа
-  const onDragEnd = (result: DropResult) => {
+  const onDragEnd = async (result: DropResult) => {
     const { source, destination, draggableId } = result;
     if (!destination || source.droppableId === destination.droppableId) return;
 
@@ -53,9 +55,14 @@ export function Funnel() {
     let rejectionReason: string | undefined;
 
     if (newStage === 'REJECTED') {
-      const reason = window.prompt('Причина отказа клиента:');
-      if (!reason || !reason.trim()) return; // отмена — не двигаем
-      rejectionReason = reason.trim();
+      const reason = await dialog.prompt({
+        title: 'Причина отказа',
+        message: 'Укажите, почему клиент отказался.',
+        placeholder: 'Например: дорого, выбрали другую компанию',
+        confirmText: 'Сохранить',
+      });
+      if (!reason) return; // отмена — не двигаем
+      rejectionReason = reason;
     }
 
     applyPatch(draggableId, { stage: newStage, rejectionReason });

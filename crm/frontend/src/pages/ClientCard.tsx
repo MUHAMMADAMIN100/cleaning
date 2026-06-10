@@ -6,6 +6,7 @@ import { useFetch } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 import { Spinner, PageHeader, Badge, Modal } from '../components/ui';
 import { useToast } from '../components/Toast';
+import { useDialog } from '../components/Dialog';
 import { OrderModal } from '../components/OrderModal';
 import {
   TAG_LABEL,
@@ -34,6 +35,7 @@ export function ClientCard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
+  const dialog = useDialog();
   const { data, loading, reload, setData } = useFetch<Client>(
     `/clients/${id}`,
     { deps: [id] },
@@ -127,12 +129,13 @@ export function ClientCard() {
 
   const removeClient = async () => {
     if (!data) return;
-    if (
-      !window.confirm(
-        `Удалить клиента «${data.fullName}» и все его заказы безвозвратно?`,
-      )
-    )
-      return;
+    const ok = await dialog.confirm({
+      title: 'Удалить клиента?',
+      message: `Клиент «${data.fullName}» и все его заказы будут удалены безвозвратно.`,
+      confirmText: 'Удалить',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await api.delete(`/clients/${data.id}`);
       toast.success('Клиент удалён');

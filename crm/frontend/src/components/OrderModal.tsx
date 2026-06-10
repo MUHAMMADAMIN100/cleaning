@@ -3,6 +3,7 @@ import { Trash2 } from 'lucide-react';
 import { api } from '../api/client';
 import { Modal, Badge } from './ui';
 import { useToast } from './Toast';
+import { useDialog } from './Dialog';
 import { DatePicker } from './DatePicker';
 import {
   STAGE_LABEL,
@@ -38,6 +39,7 @@ export function OrderModal({
   onDeleted,
 }: Props) {
   const toast = useToast();
+  const dialog = useDialog();
   const [order, setOrder] = useState<Order | null>(null);
   const [cleaners, setCleaners] = useState<Cleaner[]>([]);
   const [stage, setStage] = useState<FunnelStage>('NEW');
@@ -152,7 +154,13 @@ export function OrderModal({
 
   const remove = async () => {
     if (!order) return;
-    if (!window.confirm('Удалить эту заявку безвозвратно?')) return;
+    const ok = await dialog.confirm({
+      title: 'Удалить заявку?',
+      message: 'Заявка будет удалена безвозвратно.',
+      confirmText: 'Удалить',
+      danger: true,
+    });
+    if (!ok) return;
     onDeleted?.(order.id);
     onClose();
     try {
