@@ -20,8 +20,8 @@ export function Stepper({ current, titles }: Props) {
                 <motion.div
                   initial={false}
                   animate={{
-                    backgroundColor: isActive || isDone ? '#16297a' : '#d4ddf5',
-                    color: isActive || isDone ? '#ffffff' : '#7e98e0',
+                    backgroundColor: isActive || isDone ? '#0078c9' : '#c9e6f8',
+                    color: isActive || isDone ? '#ffffff' : '#5fb1e8',
                     scale: isActive ? 1.1 : 1,
                   }}
                   className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold"

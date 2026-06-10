@@ -68,7 +68,7 @@ export function OptionCard({
       {icon && (
         <span
           className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
-            active ? 'bg-navy-800 text-white' : 'bg-navy-100 text-navy-600'
+            active ? 'bg-navy-500 text-white' : 'bg-navy-100 text-navy-600'
           }`}
         >
           {icon}
@@ -84,7 +84,7 @@ export function OptionCard({
       </span>
       <span
         className={`ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all ${
-          active ? 'border-navy-800 bg-navy-800' : 'border-navy-300'
+          active ? 'border-navy-500 bg-navy-500' : 'border-navy-300'
         }`}
       >
         {active && <span className="h-2 w-2 rounded-full bg-white" />}

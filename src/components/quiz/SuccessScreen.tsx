@@ -23,7 +23,7 @@ export function SuccessScreen({ total, name, phone }: Props) {
         transition={{ type: 'spring', stiffness: 200, damping: 14, delay: 0.1 }}
         className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-navy-100"
       >
-        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-navy-800 shadow-glow">
+        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-navy-500 shadow-glow">
           <IconCheck className="h-8 w-8 text-white" />
         </span>
       </motion.div>

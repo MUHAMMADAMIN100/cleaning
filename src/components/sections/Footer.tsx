@@ -18,7 +18,7 @@ const SOCIALS = [
 
 export function Footer() {
   return (
-    <footer id="footer" className="border-t border-white/10 bg-navy-950">
+    <footer id="footer" className="bg-navy-500 text-white">
       <div className="container-px py-16">
         <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr_1fr]">
           {/* Бренд */}
@@ -35,7 +35,7 @@ export function Footer() {
                   href={s.href}
                   target="_blank"
                   aria-label={s.label}
-                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition-all hover:-translate-y-0.5 hover:border-accent/50 hover:text-accent-light"
+                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition-all hover:-translate-y-0.5 hover:border-white/40 hover:text-white"
                 >
                   <s.icon className="h-5 w-5" />
                 </a>
@@ -57,7 +57,7 @@ export function Footer() {
                 <li key={id}>
                   <button
                     onClick={() => scrollToId(id)}
-                    className="transition hover:text-accent-light"
+                    className="transition hover:text-white"
                   >
                     {label}
                   </button>
@@ -75,18 +75,18 @@ export function Footer() {
               <li>
                 <a
                   href={COMPANY.phoneHref}
-                  className="flex items-center gap-2.5 transition hover:text-accent-light"
+                  className="flex items-center gap-2.5 transition hover:text-white"
                 >
-                  <IconPhone className="h-4 w-4 text-accent-light" />
+                  <IconPhone className="h-4 w-4 text-white" />
                   {COMPANY.phone}
                 </a>
               </li>
               <li className="flex items-center gap-2.5">
-                <IconMapPin className="h-4 w-4 text-accent-light" />
+                <IconMapPin className="h-4 w-4 text-white" />
                 {COMPANY.address}
               </li>
               <li className="flex items-center gap-2.5">
-                <IconClock className="h-4 w-4 text-accent-light" />
+                <IconClock className="h-4 w-4 text-white" />
                 {COMPANY.workingHours}
               </li>
             </ul>

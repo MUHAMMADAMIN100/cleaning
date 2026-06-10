@@ -4,25 +4,30 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Брендовая палитра «Archidea Cleaning» — вокруг цвета логотипа #0078C9
         navy: {
-          50: '#eef2fb',
-          100: '#d4ddf5',
-          200: '#a9bbeb',
-          300: '#7e98e0',
-          400: '#5376d6',
-          500: '#2e54c4',
-          600: '#1f3a9e',
-          700: '#16297a',
-          800: '#0e1b54',
-          900: '#0a1440',
-          950: '#060d2b',
+          50: '#e6f3fb',
+          100: '#c9e6f8',
+          200: '#95cdf0',
+          300: '#5fb1e8',
+          400: '#2a93da',
+          500: '#0078c9', // ← точный цвет логотипа
+          600: '#0063a8',
+          700: '#014e85',
+          800: '#053a63',
+          900: '#0a2a48',
+          950: '#061a2e',
         },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        card: '0 6px 24px -10px rgba(10, 20, 64, 0.18)',
+        card: '0 6px 24px -10px rgba(6, 26, 46, 0.2)',
+      },
+      backgroundImage: {
+        'navy-gradient':
+          'linear-gradient(140deg, #0078c9 0%, #0063a8 60%, #014e85 100%)',
       },
     },
   },

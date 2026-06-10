@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sparkles, LogIn } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { PasswordInput } from '../components/ui';
 
@@ -25,14 +25,16 @@ export function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-navy-900 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-navy-gradient p-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center text-white">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10">
-            <Sparkles className="h-7 w-7 text-navy-200" />
-          </div>
-          <h1 className="text-2xl font-extrabold">Archidea Sistem</h1>
-          <p className="mt-1 text-sm text-navy-300">
+          <img
+            src="/logo.png"
+            alt="Archidea Cleaning"
+            className="mx-auto mb-4 h-20 w-20 rounded-2xl object-contain shadow-lg ring-4 ring-white/40"
+          />
+          <h1 className="text-2xl font-extrabold">Archidea Cleaning</h1>
+          <p className="mt-1 text-sm text-white/90">
             CRM для клининговой компании
           </p>
         </div>

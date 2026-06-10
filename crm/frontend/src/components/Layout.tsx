@@ -14,7 +14,6 @@ import {
   LogOut,
   Menu,
   X,
-  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { NotificationsBell } from './NotificationsBell';
@@ -75,18 +74,22 @@ export function Layout() {
     <div className="flex min-h-screen">
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 transform bg-navy-900 text-white transition-transform lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 w-64 transform bg-navy-500 text-white transition-transform lg:static lg:translate-x-0 ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <div className="flex h-16 items-center gap-2.5 px-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10">
-            <Sparkles className="h-5 w-5 text-navy-200" />
+          <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg bg-white">
+            <img
+              src="/logo.png"
+              alt="Archidea Cleaning"
+              className="h-9 w-9 object-contain"
+            />
           </span>
           <div className="leading-tight">
             <div className="text-sm font-extrabold">Archidea</div>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-navy-300">
-              Sistem
+            <div className="text-[10px] uppercase tracking-[0.2em] text-white/90">
+              Cleaning · CRM
             </div>
           </div>
         </div>
@@ -102,7 +105,7 @@ export function Layout() {
                 `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
                   isActive
                     ? 'bg-white text-navy-900'
-                    : 'text-navy-200 hover:bg-white/10 hover:text-white'
+                    : 'text-white hover:bg-white/15'
                 }`
               }
             >
@@ -115,7 +118,7 @@ export function Layout() {
         <div className="absolute inset-x-0 bottom-0 p-3">
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-navy-200 hover:bg-white/10 hover:text-white"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white hover:bg-white/15"
           >
             <LogOut className="h-[18px] w-[18px]" />
             Выйти
@@ -153,7 +156,7 @@ export function Layout() {
                   {user?.role === 'DIRECTOR' ? 'Руководитель' : 'Менеджер'}
                 </div>
               </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-navy-800 text-sm font-bold text-white">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-navy-500 text-sm font-bold text-white">
                 {user?.fullName?.[0] ?? '?'}
               </div>
             </div>

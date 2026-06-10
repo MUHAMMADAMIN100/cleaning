@@ -229,7 +229,7 @@ export function OrderModal({
                     onClick={() => toggleCleaner(c.id)}
                     className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                       selectedCleaners.includes(c.id)
-                        ? 'bg-navy-800 text-white'
+                        ? 'bg-navy-500 text-white'
                         : 'border border-navy-200 bg-white text-navy-600 hover:bg-navy-50'
                     }`}
                   >

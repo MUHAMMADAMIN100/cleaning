@@ -36,7 +36,7 @@ export function Tariffs() {
       <div className="container-px">
         <Reveal>
           <div className="text-center">
-            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-navy-200">
+            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-white">
               Виды уборки
             </p>
             <h2 className="section-title mx-auto max-w-2xl">
@@ -60,7 +60,7 @@ export function Tariffs() {
                 }`}
               >
                 {type.popular && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-navy-800 px-4 py-1 text-xs font-semibold text-white">
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-navy-500 px-4 py-1 text-xs font-semibold text-white">
                     Популярный выбор
                   </span>
                 )}
@@ -83,7 +83,7 @@ export function Tariffs() {
                   {INCLUDES[type.id]?.map((item) => (
                     <li key={item} className="flex items-start gap-2.5 text-sm">
                       <IconCheck
-                        className={`mt-0.5 h-4 w-4 shrink-0 ${type.popular ? 'text-navy-600' : 'text-navy-200'}`}
+                        className={`mt-0.5 h-4 w-4 shrink-0 ${type.popular ? 'text-navy-600' : 'text-white'}`}
                       />
                       <span className={type.popular ? 'text-navy-800' : 'text-white/80'}>
                         {item}

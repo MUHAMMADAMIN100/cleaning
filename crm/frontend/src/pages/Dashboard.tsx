@@ -68,13 +68,13 @@ export function Dashboard() {
 
       {/* Доход — только руководителю */}
       {user?.role === 'DIRECTOR' && data.revenueMonth !== undefined && (
-        <div className="mt-4 card flex items-center justify-between bg-navy-900 p-6 text-white">
+        <div className="mt-4 card flex items-center justify-between border-0 bg-navy-gradient p-6 text-white">
           <div className="flex items-center gap-4">
-            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10">
-              <Wallet className="h-6 w-6 text-navy-200" />
+            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/15">
+              <Wallet className="h-6 w-6 text-white" />
             </span>
             <div>
-              <div className="text-sm text-navy-300">Доход за текущий месяц</div>
+              <div className="text-sm text-white/90">Доход за текущий месяц</div>
               <div className="text-3xl font-extrabold">
                 {formatPrice(data.revenueMonth)}
               </div>

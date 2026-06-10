@@ -20,11 +20,11 @@
   }
 
   /* ── Кнопки ── */
-  /* Основная: тёмно-синяя заливка + белый текст (для светлых секций) */
+  /* Основная: брендовый голубой #0078C9 + белый текст (для светлых секций) */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-navy-800 px-7 py-3.5
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-navy-500 px-7 py-3.5
            font-semibold text-white shadow-card transition-all duration-300
-           hover:bg-navy-700 hover:-translate-y-0.5 active:translate-y-0
+           hover:bg-navy-600 hover:-translate-y-0.5 active:translate-y-0
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
   /* Белая: белая заливка + тёмно-синий текст (для тёмных секций) */
@@ -66,12 +66,12 @@
   width: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: #eef2fb;
+  background: #e6f3fb;
 }
 ::-webkit-scrollbar-thumb {
-  background: #16297a;
+  background: #0078c9;
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #0e1b54;
+  background: #0063a8;
 }

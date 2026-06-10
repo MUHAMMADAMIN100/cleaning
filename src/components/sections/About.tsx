@@ -48,7 +48,7 @@ export function About() {
             Клининговая компания, которой доверяют дом и офис
           </h2>
           <p className="mt-4 max-w-2xl text-lg text-navy-600">
-            «Arhydeya Cleaning» — это команда профессионалов в Душанбе. Мы берём
+            «Archidea Cleaning» — это команда профессионалов в Душанбе. Мы берём
             на себя уборку, чтобы вы занимались тем, что действительно важно.
           </p>
         </Reveal>
@@ -57,7 +57,7 @@ export function About() {
           {FEATURES.map((f, i) => (
             <Reveal key={f.title} delay={i * 0.08}>
               <div className="card-light group h-full p-6 transition-all duration-300 hover:-translate-y-1 hover:border-navy-300 hover:shadow-glow">
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-navy-800 text-white transition-colors group-hover:bg-navy-700">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-navy-500 text-white transition-colors group-hover:bg-navy-600">
                   <f.icon className="h-6 w-6" />
                 </span>
                 <h3 className="mt-5 text-lg font-bold">{f.title}</h3>
@@ -74,7 +74,7 @@ export function About() {
           <div className="mt-12 grid grid-cols-2 gap-4 rounded-3xl bg-navy-gradient p-8 text-white sm:grid-cols-4">
             {STATS.map(([num, label]) => (
               <div key={label} className="text-center">
-                <div className="text-3xl font-extrabold text-navy-100 sm:text-4xl">
+                <div className="text-3xl font-extrabold text-white sm:text-4xl">
                   {num}
                 </div>
                 <div className="mt-1 text-sm text-white/60">{label}</div>

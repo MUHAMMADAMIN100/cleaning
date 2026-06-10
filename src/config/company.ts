@@ -3,7 +3,7 @@
  * Меняется в одном месте — отражается на всём лендинге.
  */
 export const COMPANY = {
-  name: 'Arhydeya Cleaning',
+  name: 'Archidea Cleaning',
   city: 'Душанбе',
   tagline: 'Чистота, которой можно доверять',
   phone: '+992 00 000 00 00',

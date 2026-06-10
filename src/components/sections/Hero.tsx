@@ -60,7 +60,7 @@ export function Hero() {
           >
             Чистота, которой
             <br />
-            <span className="text-navy-200">можно доверять</span>
+            <span className="text-white">можно доверять</span>
           </motion.h1>
 
           <motion.p
@@ -96,7 +96,7 @@ export function Hero() {
           >
             {PERKS.map((p) => (
               <li key={p} className="flex items-center gap-2">
-                <IconCheck className="h-4 w-4 text-navy-200" />
+                <IconCheck className="h-4 w-4 text-white" />
                 {p}
               </li>
             ))}
@@ -148,10 +148,10 @@ export function Hero() {
           <motion.div
             animate={{ y: [0, -12, 0] }}
             transition={{ duration: 5, repeat: Infinity }}
-            className="absolute -left-6 -top-6 hidden rounded-2xl border border-white/10 bg-navy-800 px-4 py-3 text-white shadow-card sm:block"
+            className="absolute -left-6 -top-6 hidden rounded-2xl border border-white/10 bg-navy-500 px-4 py-3 text-white shadow-card sm:block"
           >
             <div className="text-xs text-white/60">Рейтинг клиентов</div>
-            <div className="text-lg font-bold text-navy-200">★ 4.9 / 5.0</div>
+            <div className="text-lg font-bold text-white">★ 4.9 / 5.0</div>
           </motion.div>
         </motion.div>
       </div>

@@ -220,7 +220,7 @@ export function QuizForm() {
                 initial={{ scale: 0.9, opacity: 0.6 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.25 }}
-                className="text-3xl font-extrabold text-navy-100"
+                className="text-3xl font-extrabold text-white"
               >
                 {formatPrice(breakdown.total)}
               </motion.span>

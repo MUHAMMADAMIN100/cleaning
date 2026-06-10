@@ -71,7 +71,7 @@ export function CalculatorStep({ state, onChange }: Props) {
               onClick={() => onChange({ ...state, area: v })}
               className={`rounded-full px-3.5 py-1.5 text-sm transition-colors ${
                 state.area === v
-                  ? 'bg-navy-800 text-white'
+                  ? 'bg-navy-500 text-white'
                   : 'bg-navy-100 text-navy-600 hover:bg-navy-200'
               }`}
             >
@@ -120,7 +120,7 @@ export function CalculatorStep({ state, onChange }: Props) {
                     onClick={() => toggleExtra(s.id, !active)}
                     className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-all ${
                       active
-                        ? 'border-navy-800 bg-navy-800 text-white'
+                        ? 'border-navy-500 bg-navy-500 text-white'
                         : 'border-navy-300 text-transparent'
                     }`}
                     aria-pressed={active}

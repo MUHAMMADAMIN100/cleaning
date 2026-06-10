@@ -24,7 +24,7 @@ export function buildOrderText(order: OrderPayload): string {
   const type = CLEANING_TYPES.find((t) => t.id === calculator.cleaningTypeId);
 
   const lines: string[] = [];
-  lines.push('🧽 НОВАЯ ЗАЯВКА — Архыдея клининг');
+  lines.push('🧽 НОВАЯ ЗАЯВКА — Archidea Cleaning');
   lines.push('');
   lines.push('━━━━━━━━━━━━━━━━');
   lines.push('📐 РАСЧЁТ');

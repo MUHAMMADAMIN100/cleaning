@@ -17,7 +17,7 @@ import { Spinner, PageHeader } from '../components/ui';
 import { formatPrice } from '../lib/labels';
 import type { Analytics as AnalyticsData } from '../types';
 
-const COLORS = ['#16297a', '#2e54c4', '#5376d6', '#7e98e0', '#a9bbeb'];
+const COLORS = ['#0063a8', '#0078c9', '#2a93da', '#5fb1e8', '#95cdf0'];
 
 export function Analytics() {
   const { user } = useAuth();
@@ -84,11 +84,11 @@ export function Analytics() {
             <h3 className="mb-4 font-bold text-navy-900">Доход за 14 дней</h3>
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={data.revenueSeries}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#eef2fb" />
-                <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#7e98e0' }} />
-                <YAxis tick={{ fontSize: 12, fill: '#7e98e0' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e6f3fb" />
+                <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#5fb1e8' }} />
+                <YAxis tick={{ fontSize: 12, fill: '#5fb1e8' }} />
                 <Tooltip formatter={(v: number) => formatPrice(v)} />
-                <Bar dataKey="revenue" fill="#2e54c4" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="revenue" fill="#0078c9" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -99,11 +99,11 @@ export function Analytics() {
           <h3 className="mb-4 font-bold text-navy-900">Заказы по типам уборки</h3>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={data.byType}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#eef2fb" />
-              <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#7e98e0' }} />
-              <YAxis tick={{ fontSize: 12, fill: '#7e98e0' }} allowDecimals={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e6f3fb" />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#5fb1e8' }} />
+              <YAxis tick={{ fontSize: 12, fill: '#5fb1e8' }} allowDecimals={false} />
               <Tooltip />
-              <Bar dataKey="count" fill="#16297a" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="count" fill="#0063a8" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -138,13 +138,13 @@ export function Analytics() {
             <h3 className="mb-4 font-bold text-navy-900">Загруженность менеджеров</h3>
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={data.managerWorkload}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#eef2fb" />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#7e98e0' }} />
-                <YAxis tick={{ fontSize: 12, fill: '#7e98e0' }} allowDecimals={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e6f3fb" />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#5fb1e8' }} />
+                <YAxis tick={{ fontSize: 12, fill: '#5fb1e8' }} allowDecimals={false} />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="active" name="Активные заказы" fill="#2e54c4" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="paid" name="Завершено" fill="#7e98e0" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="active" name="Активные заказы" fill="#0078c9" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="paid" name="Завершено" fill="#5fb1e8" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
