@@ -215,6 +215,12 @@ export class OrdersService {
     });
   }
 
+  async remove(user: AuthUser, id: string) {
+    await this.getOne(user, id); // проверка доступа
+    await this.prisma.order.delete({ where: { id } });
+    return { ok: true };
+  }
+
   private async addClientTag(clientId: string, tag: ClientTag) {
     const client = await this.prisma.client.findUnique({
       where: { id: clientId },

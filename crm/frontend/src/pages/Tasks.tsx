@@ -5,6 +5,7 @@ import { useFetch } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 import { Spinner, PageHeader, Badge, Modal, EmptyState } from '../components/ui';
 import { useToast } from '../components/Toast';
+import { DatePicker } from '../components/DatePicker';
 import {
   PRIORITY_LABEL,
   PRIORITY_COLOR,
@@ -226,7 +227,7 @@ function AddTaskModal({
           </div>
           <div>
             <label className="label">Дедлайн</label>
-            <input type="date" className="input" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+            <DatePicker value={deadline} onChange={setDeadline} />
           </div>
         </div>
         <div className="flex justify-end gap-2 pt-2">

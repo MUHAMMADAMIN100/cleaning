@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { useFetch } from '../api/hooks';
 import { Spinner, PageHeader, Modal, EmptyState } from '../components/ui';
 import { useToast } from '../components/Toast';
+import { DatePicker } from '../components/DatePicker';
 import { useAuth } from '../auth/AuthContext';
 import { SCHEDULE_LABEL, formatDateTime } from '../lib/labels';
 import { tempId } from '../lib/util';
@@ -153,10 +154,12 @@ function AddEventModal({
 }) {
   const [title, setTitle] = useState('');
   const [type, setType] = useState<ScheduleType>('INSPECTION');
-  const [date, setDate] = useState('');
+  const [day, setDay] = useState('');
+  const [time, setTime] = useState('10:00');
   const [note, setNote] = useState('');
 
   const submit = () => {
+    const date = day ? `${day}T${time || '10:00'}` : '';
     onCreate({ title, type, date, note: note || undefined });
     onClose();
   };
@@ -176,9 +179,20 @@ function AddEventModal({
             <option value="MEETING">Встреча</option>
           </select>
         </div>
-        <div>
-          <label className="label">Дата и время *</label>
-          <input type="datetime-local" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">Дата *</label>
+            <DatePicker value={day} onChange={setDay} />
+          </div>
+          <div>
+            <label className="label">Время</label>
+            <input
+              type="time"
+              className="input [color-scheme:light]"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+            />
+          </div>
         </div>
         <div>
           <label className="label">Заметка</label>
@@ -186,7 +200,7 @@ function AddEventModal({
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} className="btn-ghost">Отмена</button>
-          <button onClick={submit} disabled={!title || !date} className="btn-primary">
+          <button onClick={submit} disabled={!title || !day} className="btn-primary">
             Добавить
           </button>
         </div>

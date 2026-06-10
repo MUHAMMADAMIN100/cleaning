@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -77,5 +78,10 @@ export class OrdersController {
     @Body() dto: AssignCleanersDto,
   ) {
     return this.service.assignCleaners(user, id, dto);
+  }
+
+  @Delete(':id')
+  remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.service.remove(user, id);
   }
 }

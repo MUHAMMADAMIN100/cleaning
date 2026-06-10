@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -9,9 +10,10 @@ import {
   CheckCircle2,
   UsersRound,
   CheckSquare,
+  ChevronRight,
 } from 'lucide-react';
 import { useFetch } from '../api/hooks';
-import { Spinner, PageHeader, Badge } from '../components/ui';
+import { Spinner, PageHeader, Badge, Modal, EmptyState } from '../components/ui';
 import { formatDate } from '../lib/labels';
 import type { Role } from '../types';
 
@@ -32,12 +34,23 @@ interface UserDetailData {
   };
 }
 
+interface ListItem {
+  id: string;
+  primary: string;
+  secondary: string;
+}
+
 export function UserDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data, loading, error } = useFetch<UserDetailData>(`/users/${id}`, {
     deps: [id],
   });
+  const [list, setList] = useState<{ type: string; title: string } | null>(null);
+  const { data: items, loading: itemsLoading } = useFetch<ListItem[]>(
+    list ? `/users/${id}/list/${list.type}` : null,
+    { deps: [list?.type] },
+  );
 
   if (loading) return <Spinner />;
   if (error || !data) {
@@ -58,11 +71,11 @@ export function UserDetail() {
 
   const isDirector = data.role === 'DIRECTOR';
   const stats = [
-    { label: 'Клиентов', value: data.stats.clients, icon: Users, color: 'bg-navy-100 text-navy-700' },
-    { label: 'Активные заказы', value: data.stats.ordersActive, icon: Loader, color: 'bg-indigo-100 text-indigo-700' },
-    { label: 'Завершено', value: data.stats.ordersPaid, icon: CheckCircle2, color: 'bg-green-100 text-green-700' },
-    { label: 'Клинеров', value: data.stats.cleaners, icon: UsersRound, color: 'bg-amber-100 text-amber-700' },
-    { label: 'Открытых задач', value: data.stats.tasksOpen, icon: CheckSquare, color: 'bg-blue-100 text-blue-700' },
+    { type: 'clients', label: 'Клиентов', value: data.stats.clients, icon: Users, color: 'bg-navy-100 text-navy-700' },
+    { type: 'active', label: 'Активные заказы', value: data.stats.ordersActive, icon: Loader, color: 'bg-indigo-100 text-indigo-700' },
+    { type: 'paid', label: 'Завершено', value: data.stats.ordersPaid, icon: CheckCircle2, color: 'bg-green-100 text-green-700' },
+    { type: 'cleaners', label: 'Клинеров', value: data.stats.cleaners, icon: UsersRound, color: 'bg-amber-100 text-amber-700' },
+    { type: 'tasks', label: 'Открытых задач', value: data.stats.tasksOpen, icon: CheckSquare, color: 'bg-blue-100 text-blue-700' },
   ];
 
   return (
@@ -136,19 +149,63 @@ export function UserDetail() {
 
       <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {stats.map((s) => (
-          <div key={s.label} className="card p-5">
-            <span
-              className={`flex h-10 w-10 items-center justify-center rounded-xl ${s.color}`}
-            >
-              <s.icon className="h-5 w-5" />
-            </span>
+          <button
+            key={s.type}
+            onClick={() => setList({ type: s.type, title: s.label })}
+            className="card p-5 text-left transition-shadow hover:shadow-lg"
+          >
+            <div className="flex items-center justify-between">
+              <span
+                className={`flex h-10 w-10 items-center justify-center rounded-xl ${s.color}`}
+              >
+                <s.icon className="h-5 w-5" />
+              </span>
+              <ChevronRight className="h-4 w-4 text-navy-300" />
+            </div>
             <div className="mt-3 text-2xl font-extrabold text-navy-900">
               {s.value}
             </div>
             <div className="text-sm text-navy-500">{s.label}</div>
-          </div>
+          </button>
         ))}
       </div>
+
+      <Modal
+        open={!!list}
+        onClose={() => setList(null)}
+        title={list ? `${list.title} — ${data.fullName}` : ''}
+      >
+        {itemsLoading ? (
+          <Spinner />
+        ) : !items || items.length === 0 ? (
+          <EmptyState text="Пусто" />
+        ) : (
+          <div className="max-h-[60vh] space-y-2 overflow-y-auto">
+            {items.map((it) => {
+              const clickable = list?.type === 'clients';
+              return (
+                <div
+                  key={it.id}
+                  onClick={
+                    clickable
+                      ? () => {
+                          setList(null);
+                          navigate(`/clients/${it.id}`);
+                        }
+                      : undefined
+                  }
+                  className={`flex items-center justify-between rounded-xl border border-navy-100 px-4 py-3 ${
+                    clickable ? 'cursor-pointer hover:bg-navy-50' : ''
+                  }`}
+                >
+                  <span className="font-medium text-navy-900">{it.primary}</span>
+                  <span className="text-sm text-navy-400">{it.secondary}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

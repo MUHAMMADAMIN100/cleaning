@@ -257,6 +257,11 @@ export function ClientCard() {
         onClose={() => setOpenOrder(null)}
         onUpdated={reload}
         onOptimistic={patchOrder}
+        onDeleted={(oid) =>
+          setData((c) =>
+            c ? { ...c, orders: (c.orders ?? []).filter((o) => o.id !== oid) } : c,
+          )
+        }
       />
       {showAddOrder && (
         <AddOrderModal

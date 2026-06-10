@@ -156,6 +156,16 @@ export function Funnel() {
         onClose={() => setOpenOrder(null)}
         onUpdated={reload}
         onOptimistic={applyPatch}
+        onDeleted={(oid) =>
+          setData((cols) =>
+            cols
+              ? cols.map((c) => ({
+                  ...c,
+                  orders: c.orders.filter((o) => o.id !== oid),
+                }))
+              : cols,
+          )
+        }
       />
     </div>
   );

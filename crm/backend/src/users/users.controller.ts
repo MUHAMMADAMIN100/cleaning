@@ -52,4 +52,14 @@ export class UsersController {
   getOne(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.service.getOne(user, id);
   }
+
+  // Списки для боксов профиля
+  @Get(':id/list/:type')
+  getList(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Param('type') type: string,
+  ) {
+    return this.service.getList(user, id, type);
+  }
 }

@@ -98,6 +98,74 @@ export class UsersService {
     };
   }
 
+  /** Список элементов для боксов профиля (клиенты/заказы/клинеры/задачи). */
+  async getList(
+    requester: AuthUser,
+    id: string,
+    type: string,
+  ): Promise<{ id: string; primary: string; secondary: string }[]> {
+    if (requester.role !== Role.DIRECTOR && requester.id !== id) {
+      throw new ForbiddenException('Нет доступа');
+    }
+    const activeStages: FunnelStage[] = [
+      FunnelStage.NEW,
+      FunnelStage.PROCESSING,
+      FunnelStage.INSPECTION,
+      FunnelStage.OFFER,
+      FunnelStage.CONFIRMED,
+      FunnelStage.IN_PROGRESS,
+      FunnelStage.DONE,
+    ];
+
+    if (type === 'clients') {
+      const rows = await this.prisma.client.findMany({
+        where: { managerId: id },
+        orderBy: { lastContactAt: 'desc' },
+      });
+      return rows.map((c) => ({ id: c.id, primary: c.fullName, secondary: c.phone }));
+    }
+    if (type === 'active' || type === 'paid') {
+      const rows = await this.prisma.order.findMany({
+        where: {
+          managerId: id,
+          stage: type === 'paid' ? FunnelStage.PAID : { in: activeStages },
+        },
+        include: { client: { select: { fullName: true } } },
+        orderBy: { updatedAt: 'desc' },
+      });
+      return rows.map((o) => ({
+        id: o.id,
+        primary: o.client?.fullName ?? '—',
+        secondary: `${o.area} м² · ${o.finalPrice ?? o.estimatedPrice} сомони`,
+      }));
+    }
+    if (type === 'cleaners') {
+      const rows = await this.prisma.cleaner.findMany({
+        where: { managerId: id },
+        orderBy: { fullName: 'asc' },
+      });
+      return rows.map((c) => ({
+        id: c.id,
+        primary: c.fullName,
+        secondary: c.phone ?? '—',
+      }));
+    }
+    if (type === 'tasks') {
+      const rows = await this.prisma.task.findMany({
+        where: { assigneeId: id, status: { not: 'DONE' } },
+        orderBy: { deadline: 'asc' },
+      });
+      return rows.map((t) => ({
+        id: t.id,
+        primary: t.title,
+        secondary: t.deadline
+          ? `до ${t.deadline.toLocaleDateString('ru-RU')}`
+          : 'без срока',
+      }));
+    }
+    return [];
+  }
+
   async setActive(id: string, isActive: boolean) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('Пользователь не найден');
