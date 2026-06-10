@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { IconArrowDown, IconCheck, IconSparkles } from '../ui/icons';
+import { IconArrowDown, IconCheck } from '../ui/icons';
 import { COMPANY } from '../../config/company';
 import { scrollToId } from '../../lib/scroll';
 
@@ -48,7 +48,6 @@ export function Hero() {
             transition={{ duration: 0.6 }}
             className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-sm text-white backdrop-blur"
           >
-            <IconSparkles className="h-4 w-4" />
             Профессиональный клининг в {COMPANY.city}
           </motion.div>
 
@@ -79,7 +78,7 @@ export function Hero() {
             transition={{ duration: 0.7, delay: 0.3 }}
             className="mt-8 flex flex-wrap items-center gap-4"
           >
-            <button onClick={() => scrollToId('calculator')} className="btn-white text-base">
+            <button onClick={() => scrollToId('request')} className="btn-white text-base">
               Рассчитать стоимость
               <IconArrowDown className="h-5 w-5" />
             </button>
@@ -137,7 +136,7 @@ export function Hero() {
               ))}
             </div>
             <button
-              onClick={() => scrollToId('calculator')}
+              onClick={() => scrollToId('request')}
               className="btn-primary mt-6 w-full"
             >
               Узнать точную цену

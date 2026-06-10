@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { prefetch } from '../api/hooks';
 import {
@@ -14,6 +14,8 @@ import {
   LogOut,
   Menu,
   X,
+  UserCircle,
+  ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { NotificationsBell } from './NotificationsBell';
@@ -42,6 +44,18 @@ export function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, []);
 
   const items = NAV.filter(
     (i) => !i.roles || (user && i.roles.includes(user.role)),
@@ -74,11 +88,11 @@ export function Layout() {
     <div className="flex min-h-screen">
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 transform bg-navy-500 text-white transition-transform lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 transform flex-col bg-navy-500 text-white transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex h-16 items-center gap-3 px-5">
+        <div className="flex h-16 shrink-0 items-center gap-3 px-5">
           <img
             src="/logo-white.png"
             alt="Archidea Cleaning"
@@ -89,7 +103,7 @@ export function Layout() {
           </span>
         </div>
 
-        <nav className="mt-4 space-y-1 px-3">
+        <nav className="mt-2 flex-1 space-y-1 overflow-y-auto px-3 py-2">
           {items.map((item) => (
             <NavLink
               key={item.to}
@@ -110,7 +124,7 @@ export function Layout() {
           ))}
         </nav>
 
-        <div className="absolute inset-x-0 bottom-0 p-3">
+        <div className="shrink-0 p-3">
           <button
             onClick={handleLogout}
             className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white hover:bg-white/15"
@@ -142,18 +156,54 @@ export function Layout() {
           </div>
           <div className="ml-auto flex items-center gap-3">
             <NotificationsBell />
-            <div className="flex items-center gap-2.5">
-              <div className="hidden text-right sm:block">
-                <div className="text-sm font-semibold text-navy-900">
-                  {user?.fullName}
+            <div className="relative" ref={profileRef}>
+              <button
+                onClick={() => setProfileOpen((o) => !o)}
+                className="flex items-center gap-2.5 rounded-xl p-1 transition-colors hover:bg-navy-50"
+              >
+                <div className="hidden text-right sm:block">
+                  <div className="text-sm font-semibold text-navy-900">
+                    {user?.fullName}
+                  </div>
+                  <div className="text-xs text-navy-400">
+                    {user?.role === 'DIRECTOR' ? 'Руководитель' : 'Менеджер'}
+                  </div>
                 </div>
-                <div className="text-xs text-navy-400">
-                  {user?.role === 'DIRECTOR' ? 'Руководитель' : 'Менеджер'}
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-navy-500 text-sm font-bold text-white">
+                  {user?.fullName?.[0] ?? '?'}
                 </div>
-              </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-navy-500 text-sm font-bold text-white">
-                {user?.fullName?.[0] ?? '?'}
-              </div>
+                <ChevronDown
+                  className={`h-4 w-4 text-navy-400 transition-transform ${profileOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+
+              {profileOpen && (
+                <div className="absolute right-0 z-50 mt-2 w-52 overflow-hidden rounded-2xl border border-navy-100 bg-white py-1.5 shadow-card">
+                  <div className="border-b border-navy-50 px-4 py-2.5">
+                    <div className="truncate text-sm font-semibold text-navy-900">
+                      {user?.fullName}
+                    </div>
+                    <div className="text-xs text-navy-400">@{user?.login}</div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setProfileOpen(false);
+                      navigate(`/profile/${user?.id}`);
+                    }}
+                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-navy-700 hover:bg-navy-50"
+                  >
+                    <UserCircle className="h-[18px] w-[18px] text-navy-500" />
+                    Профиль
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                  >
+                    <LogOut className="h-[18px] w-[18px]" />
+                    Выйти
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>

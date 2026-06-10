@@ -57,6 +57,7 @@ export class CleanersService {
       include: {
         client: { select: { fullName: true, phone: true } },
         cleaners: { select: { id: true, fullName: true } },
+        manager: { select: { id: true, fullName: true } },
       },
       orderBy: { scheduledDate: 'asc' },
     });

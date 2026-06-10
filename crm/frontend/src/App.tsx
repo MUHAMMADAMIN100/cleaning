@@ -15,6 +15,7 @@ import { Team } from './pages/Team';
 import { Analytics } from './pages/Analytics';
 import { Tariffs } from './pages/Tariffs';
 import { UsersPage } from './pages/Users';
+import { UserDetail } from './pages/UserDetail';
 
 function Protected({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth();
@@ -84,6 +85,8 @@ export default function App() {
             </RoleOnly>
           }
         />
+        {/* Профиль/детали сотрудника — доступ контролирует бэкенд (руководитель или сам) */}
+        <Route path="/profile/:id" element={<UserDetail />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,4 +1,5 @@
 import { FieldLabel, OptionCard, TextArea, TextInput } from './fields';
+import { DatePickerField } from './DatePickerField';
 import type { QuizState } from '../../types';
 
 interface Props {
@@ -17,12 +18,10 @@ export function SpecificsStep({ state, onChange, minDate }: Props) {
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <FieldLabel required>Желаемая дата</FieldLabel>
-          <TextInput
-            type="date"
-            min={minDate}
+          <DatePickerField
             value={state.date}
-            onChange={(e) => set('date', e.target.value)}
-            className="[color-scheme:light]"
+            minDate={minDate}
+            onChange={(v) => set('date', v)}
           />
         </div>
         <div>

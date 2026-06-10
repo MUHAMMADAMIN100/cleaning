@@ -1,11 +1,13 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { FunnelStage, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
+import { AuthUser } from '../common/decorators/current-user.decorator';
 import { CreateUserDto } from './dto/create-user.dto';
 
 const SAFE_SELECT = {
@@ -53,6 +55,47 @@ export class UsersService {
       },
       select: SAFE_SELECT,
     });
+  }
+
+  /** Карточка сотрудника + статистика. Доступ: руководитель или сам сотрудник. */
+  async getOne(requester: AuthUser, id: string) {
+    if (requester.role !== Role.DIRECTOR && requester.id !== id) {
+      throw new ForbiddenException('Нет доступа к этому профилю');
+    }
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: SAFE_SELECT,
+    });
+    if (!user) throw new NotFoundException('Сотрудник не найден');
+
+    const activeStages: FunnelStage[] = [
+      FunnelStage.NEW,
+      FunnelStage.PROCESSING,
+      FunnelStage.INSPECTION,
+      FunnelStage.OFFER,
+      FunnelStage.CONFIRMED,
+      FunnelStage.IN_PROGRESS,
+      FunnelStage.DONE,
+    ];
+    const [clients, ordersActive, ordersPaid, cleaners, tasksOpen] =
+      await Promise.all([
+        this.prisma.client.count({ where: { managerId: id } }),
+        this.prisma.order.count({
+          where: { managerId: id, stage: { in: activeStages } },
+        }),
+        this.prisma.order.count({
+          where: { managerId: id, stage: FunnelStage.PAID },
+        }),
+        this.prisma.cleaner.count({ where: { managerId: id } }),
+        this.prisma.task.count({
+          where: { assigneeId: id, status: { not: 'DONE' } },
+        }),
+      ]);
+
+    return {
+      ...user,
+      stats: { clients, ordersActive, ordersPaid, cleaners, tasksOpen },
+    };
   }
 
   async setActive(id: string, isActive: boolean) {

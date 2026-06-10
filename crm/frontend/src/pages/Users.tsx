@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, ShieldCheck, UserRound } from 'lucide-react';
 import { api } from '../api/client';
 import { useFetch } from '../api/hooks';
@@ -9,6 +10,7 @@ import type { Manager, Role } from '../types';
 
 export function UsersPage() {
   const toast = useToast();
+  const navigate = useNavigate();
   const { data, loading, reload, setData } = useFetch<Manager[]>('/users');
   const [showAdd, setShowAdd] = useState(false);
 
@@ -67,7 +69,11 @@ export function UsersPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {data.map((u) => (
-            <div key={u.id} className="card p-5">
+            <div
+              key={u.id}
+              onClick={() => navigate(`/profile/${u.id}`)}
+              className="card cursor-pointer p-5 transition-shadow hover:shadow-lg"
+            >
               <div className="flex items-center gap-3">
                 <span
                   className={`flex h-11 w-11 items-center justify-center rounded-xl ${
@@ -98,7 +104,10 @@ export function UsersPage() {
                   {u.role === 'DIRECTOR' ? 'Руководитель' : 'Менеджер'}
                 </Badge>
                 <button
-                  onClick={() => toggleActive(u.id, !u.isActive)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleActive(u.id, !u.isActive);
+                  }}
                   className={`text-xs font-semibold ${
                     u.isActive ? 'text-green-600' : 'text-navy-400'
                   }`}

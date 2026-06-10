@@ -13,6 +13,10 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import {
+  CurrentUser,
+  AuthUser,
+} from '../common/decorators/current-user.decorator';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('users')
@@ -41,5 +45,11 @@ export class UsersController {
   @Patch(':id/active')
   setActive(@Param('id') id: string, @Body('isActive') isActive: boolean) {
     return this.service.setActive(id, isActive);
+  }
+
+  // Карточка сотрудника / профиль (руководитель — любой, сотрудник — себя)
+  @Get(':id')
+  getOne(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.service.getOne(user, id);
   }
 }

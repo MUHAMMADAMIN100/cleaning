@@ -18,7 +18,7 @@ export function Header() {
   // Над тёмным Hero — светлый текст; после скролла — белая шапка с тёмным текстом.
   const navLink = scrolled
     ? 'text-navy-600 hover:text-navy-900'
-    : 'text-white/70 hover:text-white';
+    : 'text-white hover:text-white/80';
 
   return (
     <motion.header

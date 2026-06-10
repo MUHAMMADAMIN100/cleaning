@@ -93,7 +93,7 @@ export function Tariffs() {
                 </ul>
 
                 <button
-                  onClick={() => scrollToId('calculator')}
+                  onClick={() => scrollToId('request')}
                   className={`mt-7 w-full ${type.popular ? 'btn-primary' : 'btn-white'}`}
                 >
                   Рассчитать

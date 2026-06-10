@@ -48,7 +48,7 @@ export function QuizForm() {
   });
   const [contact, setContact] = useState<ContactState>({
     name: '',
-    phone: '',
+    phone: '+992 ',
     address: '',
   });
   const [contactErrors, setContactErrors] = useState<
@@ -73,7 +73,7 @@ export function QuizForm() {
   const validateContacts = () => {
     const errs: Partial<Record<keyof ContactState, boolean>> = {
       name: contact.name.trim().length < 2,
-      phone: contact.phone.replace(/\D/g, '').length < 7,
+      phone: contact.phone.replace(/\D/g, '').length < 12, // 992 + 9 цифр
       address: contact.address.trim().length < 4,
     };
     setContactErrors(errs);

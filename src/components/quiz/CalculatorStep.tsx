@@ -108,63 +108,70 @@ export function CalculatorStep({ state, onChange }: Props) {
             return (
               <div
                 key={s.id}
-                className={`rounded-2xl border p-4 transition-all duration-200 ${
+                role="button"
+                tabIndex={0}
+                onClick={() => toggleExtra(s.id, !active)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggleExtra(s.id, !active);
+                  }
+                }}
+                className={`flex min-h-[72px] cursor-pointer items-center gap-3 rounded-2xl border p-4 transition-all duration-200 ${
                   active
-                    ? 'border-navy-700 bg-navy-50 ring-1 ring-navy-200'
-                    : 'border-navy-200 bg-white'
+                    ? 'border-navy-500 bg-navy-50 ring-1 ring-navy-300'
+                    : 'border-navy-200 bg-white hover:border-navy-400 hover:bg-navy-50'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => toggleExtra(s.id, !active)}
-                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-all ${
-                      active
-                        ? 'border-navy-500 bg-navy-500 text-white'
-                        : 'border-navy-300 text-transparent'
-                    }`}
-                    aria-pressed={active}
-                  >
-                    <IconCheck className="h-4 w-4" />
-                  </button>
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-navy-100 text-navy-600">
-                    {Icon && <Icon className="h-5 w-5" />}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold leading-tight text-navy-900">
-                      {s.title}
-                    </div>
-                    <div className="text-xs text-navy-500">
-                      +{s.price} {CURRENCY}
-                      {s.hasQuantity ? ` / ${s.unit}` : ''}
-                    </div>
+                <span
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-all ${
+                    active
+                      ? 'border-navy-500 bg-navy-500 text-white'
+                      : 'border-navy-300 text-transparent'
+                  }`}
+                >
+                  <IconCheck className="h-4 w-4" />
+                </span>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-navy-100 text-navy-600">
+                  {Icon && <Icon className="h-5 w-5" />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-semibold leading-tight text-navy-900">
+                    {s.title}
                   </div>
-
-                  {/* Счётчик количества для услуг с qty */}
-                  {s.hasQuantity && active && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setQty(s.id, qty - 1)}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg bg-navy-100 text-lg leading-none text-navy-700 hover:bg-navy-200"
-                      >
-                        −
-                      </button>
-                      <span className="w-5 text-center text-sm font-semibold text-navy-900">
-                        {qty}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setQty(s.id, qty + 1)}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg bg-navy-100 text-lg leading-none text-navy-700 hover:bg-navy-200"
-                      >
-                        +
-                      </button>
-                    </div>
-                  )}
+                  <div className="text-xs text-navy-500">
+                    +{s.price} {CURRENCY}
+                    {s.hasQuantity ? ` / ${s.unit}` : ''}
+                  </div>
                 </div>
-                {s.hasQuantity && active && s.hint && (
-                  <p className="mt-2 pl-9 text-xs text-navy-400">{s.hint}</p>
+
+                {/* Счётчик количества — всегда виден для услуг с qty */}
+                {s.hasQuantity && (
+                  <div
+                    className="flex shrink-0 items-center gap-1.5"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setQty(s.id, qty - 1)}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg bg-navy-100 text-lg leading-none text-navy-700 transition hover:bg-navy-200 disabled:opacity-40"
+                      disabled={qty <= 0}
+                      aria-label="Меньше"
+                    >
+                      −
+                    </button>
+                    <span className="w-5 text-center text-sm font-semibold text-navy-900">
+                      {qty}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setQty(s.id, qty + 1)}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg bg-navy-100 text-lg leading-none text-navy-700 transition hover:bg-navy-200"
+                      aria-label="Больше"
+                    >
+                      +
+                    </button>
+                  </div>
                 )}
               </div>
             );

@@ -8,6 +8,19 @@ interface Props {
   errors: Partial<Record<keyof ContactState, boolean>>;
 }
 
+/** Форматирует ввод как +992 XX XXX XX XX, прочно закрепляя префикс +992. */
+export function formatTjPhone(raw: string): string {
+  let digits = raw.replace(/\D/g, '');
+  if (digits.startsWith('992')) digits = digits.slice(3);
+  digits = digits.slice(0, 9); // 9 цифр номера
+  let out = '+992';
+  if (digits.length) out += ' ' + digits.slice(0, 2);
+  if (digits.length > 2) out += ' ' + digits.slice(2, 5);
+  if (digits.length > 5) out += ' ' + digits.slice(5, 7);
+  if (digits.length > 7) out += ' ' + digits.slice(7, 9);
+  return out;
+}
+
 export function ContactsStep({ state, onChange, errors }: Props) {
   const set = <K extends keyof ContactState>(key: K, value: ContactState[K]) =>
     onChange({ ...state, [key]: value });
@@ -29,9 +42,20 @@ export function ContactsStep({ state, onChange, errors }: Props) {
         <FieldLabel required>Номер телефона</FieldLabel>
         <TextInput
           type="tel"
-          value={state.phone}
+          inputMode="numeric"
+          value={state.phone || '+992 '}
           invalid={errors.phone}
-          onChange={(e) => set('phone', e.target.value)}
+          onChange={(e) => set('phone', formatTjPhone(e.target.value))}
+          onFocus={(e) => {
+            if (!state.phone) set('phone', '+992 ');
+            // курсор в конец
+            requestAnimationFrame(() =>
+              e.target.setSelectionRange(
+                e.target.value.length,
+                e.target.value.length,
+              ),
+            );
+          }}
           placeholder="+992 __ ___ __ __"
           autoComplete="tel"
         />
