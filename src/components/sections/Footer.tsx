@@ -23,7 +23,7 @@ export function Footer() {
         <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr_1fr]">
           {/* Бренд */}
           <div>
-            <Logo />
+            <Logo variant="white" />
             <p className="mt-4 max-w-xs text-sm text-white/60">
               Профессиональный клининг в {COMPANY.city}. Чистота, которой можно
               доверять — для дома и офиса.

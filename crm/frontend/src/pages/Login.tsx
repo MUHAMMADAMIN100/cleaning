@@ -29,13 +29,12 @@ export function Login() {
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center text-white">
           <img
-            src="/logo.png"
+            src="/logo-white.png"
             alt="Archidea Cleaning"
-            className="mx-auto mb-4 h-20 w-20 rounded-2xl object-contain shadow-lg ring-4 ring-white/40"
+            className="mx-auto mb-3 h-28 w-auto"
           />
-          <h1 className="text-2xl font-extrabold">Archidea Cleaning</h1>
-          <p className="mt-1 text-sm text-white/90">
-            CRM для клининговой компании
+          <p className="text-sm font-medium uppercase tracking-[0.2em] text-white/90">
+            CRM-система
           </p>
         </div>
 

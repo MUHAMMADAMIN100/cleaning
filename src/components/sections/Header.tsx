@@ -32,7 +32,7 @@ export function Header() {
       }`}
     >
       <div className="container-px flex h-16 items-center justify-between">
-        <Logo />
+        <Logo variant={scrolled ? 'blue' : 'white'} />
 
         <nav className="hidden items-center gap-7 text-sm font-medium md:flex">
           {[

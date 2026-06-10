@@ -78,20 +78,15 @@ export function Layout() {
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex h-16 items-center gap-2.5 px-5">
-          <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg bg-white">
-            <img
-              src="/logo.png"
-              alt="Archidea Cleaning"
-              className="h-9 w-9 object-contain"
-            />
+        <div className="flex h-16 items-center gap-3 px-5">
+          <img
+            src="/logo-white.png"
+            alt="Archidea Cleaning"
+            className="h-11 w-auto"
+          />
+          <span className="rounded-md bg-white/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-white">
+            CRM
           </span>
-          <div className="leading-tight">
-            <div className="text-sm font-extrabold">Archidea</div>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-white/90">
-              Cleaning · CRM
-            </div>
-          </div>
         </div>
 
         <nav className="mt-4 space-y-1 px-3">
