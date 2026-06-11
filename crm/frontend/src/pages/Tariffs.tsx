@@ -39,16 +39,17 @@ const EXTRA_META: Record<string, { icon: LucideIcon }> = {
 export function Tariffs() {
   const toast = useToast();
   const { data, loading, reload } = useFetch<TariffsData>('/tariffs');
-  const [prices, setPrices] = useState<Record<string, number>>({});
-  const [extraPrices, setExtraPrices] = useState<Record<string, number>>({});
+  // Цены храним строками — чтобы поле можно было очистить и не было «прилипшего» нуля
+  const [prices, setPrices] = useState<Record<string, string>>({});
+  const [extraPrices, setExtraPrices] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (data) {
       setPrices(
-        Object.fromEntries(data.tariffs.map((t) => [t.key, t.pricePerSqm])),
+        Object.fromEntries(data.tariffs.map((t) => [t.key, String(t.pricePerSqm)])),
       );
       setExtraPrices(
-        Object.fromEntries(data.extras.map((e) => [e.key, e.price])),
+        Object.fromEntries(data.extras.map((e) => [e.key, String(e.price)])),
       );
     }
   }, [data]);
@@ -57,7 +58,9 @@ export function Tariffs() {
 
   const saveTariff = async (key: string) => {
     try {
-      await api.patch(`/tariffs/tariff/${key}`, { pricePerSqm: prices[key] });
+      await api.patch(`/tariffs/tariff/${key}`, {
+        pricePerSqm: Number(prices[key] || 0),
+      });
       toast.success('Цена обновлена');
       reload();
     } catch {
@@ -67,7 +70,9 @@ export function Tariffs() {
   };
   const saveExtra = async (key: string) => {
     try {
-      await api.patch(`/tariffs/extra/${key}`, { price: extraPrices[key] });
+      await api.patch(`/tariffs/extra/${key}`, {
+        price: Number(extraPrices[key] || 0),
+      });
       toast.success('Цена обновлена');
       reload();
     } catch {
@@ -90,7 +95,7 @@ export function Tariffs() {
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {data.tariffs.map((t) => {
           const meta = TYPE_META[t.key];
-          const dirty = prices[t.key] !== t.pricePerSqm;
+          const dirty = (prices[t.key] ?? '') !== String(t.pricePerSqm);
           return (
             <PriceCard
               key={t.key}
@@ -98,7 +103,7 @@ export function Tariffs() {
               title={t.title}
               desc={meta?.desc}
               unit="сомони / м²"
-              value={prices[t.key] ?? 0}
+              value={prices[t.key] ?? ''}
               dirty={dirty}
               onChange={(v) => setPrices((p) => ({ ...p, [t.key]: v }))}
               onSave={() => saveTariff(t.key)}
@@ -113,14 +118,14 @@ export function Tariffs() {
       </h3>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {data.extras.map((e) => {
-          const dirty = extraPrices[e.key] !== e.price;
+          const dirty = (extraPrices[e.key] ?? '') !== String(e.price);
           return (
             <PriceCard
               key={e.key}
               icon={EXTRA_META[e.key]?.icon ?? Box}
               title={e.title}
               unit={e.hasQty ? 'сомони / шт' : 'сомони'}
-              value={extraPrices[e.key] ?? 0}
+              value={extraPrices[e.key] ?? ''}
               dirty={dirty}
               onChange={(v) => setExtraPrices((p) => ({ ...p, [e.key]: v }))}
               onSave={() => saveExtra(e.key)}
@@ -146,9 +151,9 @@ function PriceCard({
   title: string;
   desc?: string;
   unit: string;
-  value: number;
+  value: string;
   dirty: boolean;
-  onChange: (v: number) => void;
+  onChange: (v: string) => void;
   onSave: () => void;
 }) {
   return (
@@ -168,10 +173,17 @@ function PriceCard({
       </label>
       <div className="relative">
         <input
-          type="number"
-          min={0}
+          type="text"
+          inputMode="numeric"
           value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
+          onChange={(e) =>
+            onChange(
+              e.target.value
+                .replace(/[^\d]/g, '') // только цифры
+                .replace(/^0+(?=\d)/, ''), // без ведущих нулей
+            )
+          }
+          placeholder="0"
           className="input pr-24 text-lg font-bold"
         />
         <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-navy-400">

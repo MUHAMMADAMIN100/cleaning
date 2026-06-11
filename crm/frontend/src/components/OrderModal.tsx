@@ -5,6 +5,7 @@ import { Modal, Badge } from './ui';
 import { useToast } from './Toast';
 import { useDialog } from './Dialog';
 import { DatePicker } from './DatePicker';
+import { withRetry } from '../lib/util';
 import {
   STAGE_LABEL,
   STAGE_ORDER,
@@ -164,7 +165,7 @@ export function OrderModal({
     onDeleted?.(order.id);
     onClose();
     try {
-      await api.delete(`/orders/${order.id}`);
+      await withRetry(() => api.delete(`/orders/${order.id}`));
       onUpdated();
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Не удалось удалить заявку');

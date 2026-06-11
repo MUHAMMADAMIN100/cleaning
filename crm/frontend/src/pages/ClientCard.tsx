@@ -18,7 +18,7 @@ import {
   formatPrice,
   formatDate,
 } from '../lib/labels';
-import { tempId, nowISO } from '../lib/util';
+import { tempId, nowISO, withRetry } from '../lib/util';
 import type {
   CleaningType,
   Client,
@@ -137,7 +137,7 @@ export function ClientCard() {
     });
     if (!ok) return;
     try {
-      await api.delete(`/clients/${data.id}`);
+      await withRetry(() => api.delete(`/clients/${data.id}`));
       toast.success('Клиент удалён');
       navigate('/clients');
     } catch (e: any) {

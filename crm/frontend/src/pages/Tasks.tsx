@@ -12,7 +12,7 @@ import {
   TASK_STATUS_LABEL,
   formatDate,
 } from '../lib/labels';
-import { tempId, nowISO } from '../lib/util';
+import { tempId, nowISO, withRetry } from '../lib/util';
 import type { Manager, Task, TaskPriority, TaskStatus } from '../types';
 
 const STATUSES: TaskStatus[] = ['OPEN', 'IN_PROGRESS', 'DONE'];
@@ -39,13 +39,13 @@ export function Tasks() {
     }
   };
 
-  // оптимистично: убираем задачу сразу
+  // оптимистично: убираем задачу сразу (с повтором при разовом сбое)
   const remove = async (id: string) => {
     setData((tasks) => (tasks ? tasks.filter((t) => t.id !== id) : tasks));
     try {
-      await api.delete(`/tasks/${id}`);
-    } catch {
-      toast.error('Не удалось удалить задачу');
+      await withRetry(() => api.delete(`/tasks/${id}`));
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Не удалось удалить задачу');
       reload();
     }
   };
