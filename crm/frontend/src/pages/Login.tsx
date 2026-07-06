@@ -45,7 +45,7 @@ export function Login() {
               className="input"
               value={loginValue}
               onChange={(e) => setLoginValue(e.target.value)}
-              placeholder="director"
+              placeholder="Введите логин"
               autoFocus
             />
           </div>
@@ -68,15 +68,6 @@ export function Login() {
             <LogIn className="h-4 w-4" />
             {loading ? 'Вход…' : 'Войти'}
           </button>
-
-          <div className="mt-5 rounded-xl bg-navy-50 p-3 text-xs text-navy-500">
-            <div className="mb-1 font-semibold text-navy-700">
-              Тестовые доступы:
-            </div>
-            director / director123 (руководитель)
-            <br />
-            manager1 / manager123 (менеджер)
-          </div>
         </form>
       </div>
     </div>
