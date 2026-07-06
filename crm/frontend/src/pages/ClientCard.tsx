@@ -15,20 +15,24 @@ import {
   STAGE_LABEL,
   STAGE_COLOR,
   TYPE_LABEL,
+  ACTIVE_TYPES,
+  DIRT_LABEL,
+  DIRT_ORDER,
   formatPrice,
   formatDate,
+  formatVolume,
 } from '../lib/labels';
 import { tempId, nowISO, withRetry } from '../lib/util';
 import type {
   CleaningType,
   Client,
   ClientTag,
+  DirtLevel,
   Manager,
   Order,
 } from '../types';
 
 const ALL_TAGS: ClientTag[] = ['VIP', 'REGULAR', 'POTENTIAL', 'REFUSED'];
-const TYPES: CleaningType[] = ['MAINTENANCE', 'GENERAL', 'POST_RENOVATION'];
 
 export function ClientCard() {
   const { id } = useParams();
@@ -74,7 +78,9 @@ export function ClientCard() {
   // оптимистично: новый заказ появляется в истории сразу
   const createOrder = (payload: {
     cleaningType: CleaningType;
+    dirtLevel?: DirtLevel;
     area: number;
+    seats?: number;
     estimatedPrice: number;
     managerId?: string;
   }) => {
@@ -87,7 +93,9 @@ export function ClientCard() {
       stage: 'NEW',
       source: 'CALL',
       cleaningType: payload.cleaningType,
+      dirtLevel: payload.dirtLevel ?? null,
       area: payload.area,
+      seats: payload.seats ?? null,
       estimatedPrice: payload.estimatedPrice,
       finalPrice: null,
       isLarge: payload.estimatedPrice >= 2000,
@@ -241,8 +249,12 @@ export function ClientCard() {
               {(data.orders ?? []).map((o) => (
                 <button
                   key={o.id}
-                  onClick={() => setOpenOrder(o)}
-                  className="flex w-full items-center justify-between rounded-xl border border-navy-100 p-4 text-left hover:bg-navy-50"
+                  // временный (оптимистичный) заказ ещё не создан на сервере — не открываем
+                  disabled={o.id.startsWith('temp_')}
+                  onClick={() => {
+                    if (!o.id.startsWith('temp_')) setOpenOrder(o);
+                  }}
+                  className="flex w-full items-center justify-between rounded-xl border border-navy-100 p-4 text-left hover:bg-navy-50 disabled:cursor-wait disabled:opacity-60"
                 >
                   <div>
                     <div className="flex items-center gap-2">
@@ -254,7 +266,9 @@ export function ClientCard() {
                       </Badge>
                     </div>
                     <div className="mt-1 text-xs text-navy-400">
-                      {o.area} м² · {formatDate(o.createdAt)}
+                      {formatVolume(o)}
+                      {o.dirtLevel && ` · ${DIRT_LABEL[o.dirtLevel]}`} ·{' '}
+                      {formatDate(o.createdAt)}
                       {o.rejectionReason && ` · Отказ: ${o.rejectionReason}`}
                     </div>
                   </div>
@@ -321,24 +335,32 @@ function AddOrderModal({
   onClose: () => void;
   onCreate: (payload: {
     cleaningType: CleaningType;
+    dirtLevel?: DirtLevel;
     area: number;
+    seats?: number;
     estimatedPrice: number;
     managerId?: string;
   }) => void;
 }) {
   const [cleaningType, setCleaningType] = useState<CleaningType>('GENERAL');
+  const [dirtLevel, setDirtLevel] = useState<DirtLevel>('LIGHT');
   const [area, setArea] = useState('');
+  const [seats, setSeats] = useState('');
   const [estimatedPrice, setEstimatedPrice] = useState('');
   const [managerId, setManagerId] = useState('');
   const { data: managers } = useFetch<Manager[]>(
     isDirector ? '/users/managers' : null,
   );
+  const isFurniture = cleaningType === 'FURNITURE';
 
   const submit = () => {
+    const toInt = (s: string) => Math.round(Number(s)) || 0; // бэкенд принимает только целые
     onCreate({
       cleaningType,
-      area: Number(area) || 0,
-      estimatedPrice: Number(estimatedPrice) || 0,
+      dirtLevel: isFurniture ? undefined : dirtLevel,
+      area: isFurniture ? 0 : toInt(area),
+      seats: isFurniture ? toInt(seats) : undefined,
+      estimatedPrice: toInt(estimatedPrice),
       managerId: managerId || undefined,
     });
     onClose();
@@ -348,18 +370,46 @@ function AddOrderModal({
     <Modal open onClose={onClose} title="Новый заказ">
       <div className="space-y-3">
         <div>
-          <label className="label">Тип уборки</label>
+          <label className="label">Услуга</label>
           <select className="input" value={cleaningType} onChange={(e) => setCleaningType(e.target.value as CleaningType)}>
-            {TYPES.map((t) => (
+            {ACTIVE_TYPES.map((t) => (
               <option key={t} value={t}>{TYPE_LABEL[t]}</option>
             ))}
           </select>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        {!isFurniture && (
           <div>
-            <label className="label">Площадь, м²</label>
-            <input type="number" className="input" value={area} onChange={(e) => setArea(e.target.value)} />
+            <label className="label">Степень загрязнения</label>
+            <div className="flex flex-wrap gap-2">
+              {DIRT_ORDER.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setDirtLevel(d)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                    dirtLevel === d
+                      ? 'bg-navy-500 text-white ring-2 ring-navy-300'
+                      : 'border border-navy-200 bg-white text-navy-500 hover:bg-navy-50'
+                  }`}
+                >
+                  {DIRT_LABEL[d]}
+                </button>
+              ))}
+            </div>
           </div>
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          {isFurniture ? (
+            <div>
+              <label className="label">Посадочных мест</label>
+              <input type="number" className="input" value={seats} onChange={(e) => setSeats(e.target.value)} />
+            </div>
+          ) : (
+            <div>
+              <label className="label">Площадь, м²</label>
+              <input type="number" className="input" value={area} onChange={(e) => setArea(e.target.value)} />
+            </div>
+          )}
           <div>
             <label className="label">Стоимость</label>
             <input type="number" className="input" value={estimatedPrice} onChange={(e) => setEstimatedPrice(e.target.value)} />

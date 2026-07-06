@@ -16,6 +16,9 @@ const SAFE_SELECT = {
   fullName: true,
   role: true,
   phone: true,
+  position: true,
+  duties: true,
+  mainTask: true,
   isActive: true,
   createdAt: true,
 };
@@ -173,6 +176,9 @@ export class UsersService {
       fullName?: string;
       login?: string;
       phone?: string;
+      position?: string;
+      duties?: string;
+      mainTask?: string;
       role?: Role;
       isActive?: boolean;
       password?: string;
@@ -184,6 +190,9 @@ export class UsersService {
     const data: any = {};
     if (dto.fullName !== undefined) data.fullName = dto.fullName;
     if (dto.phone !== undefined) data.phone = dto.phone || null;
+    if (dto.position !== undefined) data.position = dto.position || null;
+    if (dto.duties !== undefined) data.duties = dto.duties || null;
+    if (dto.mainTask !== undefined) data.mainTask = dto.mainTask || null;
     if (dto.role !== undefined) data.role = dto.role;
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
     if (dto.login) {

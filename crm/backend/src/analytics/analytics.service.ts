@@ -4,9 +4,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 
 const TYPE_LABEL: Record<string, string> = {
-  MAINTENANCE: 'Поддерживающая',
+  MAINTENANCE: 'Поддерживающая (архив)',
   GENERAL: 'Генеральная',
   POST_RENOVATION: 'После ремонта',
+  FURNITURE: 'Мягкая мебель',
 };
 const SOURCE_LABEL: Record<string, string> = {
   SITE: 'Сайт',

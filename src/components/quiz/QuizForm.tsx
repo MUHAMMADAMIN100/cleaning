@@ -10,6 +10,7 @@ import { calculatePrice } from '../../lib/calc';
 import { formatPrice } from '../../lib/format';
 import { submitOrderOptimistic, flushPendingOrders } from '../../lib/submit';
 import { DEFAULTS } from '../../config/pricing';
+import { usePricing } from '../../lib/tariffs';
 import type {
   CalculatorState,
   ContactState,
@@ -34,9 +35,12 @@ export function QuizForm() {
     flushPendingOrders();
   }, []);
 
+  const pricing = usePricing(); // живые цены из CRM (с резервом)
   const [calc, setCalc] = useState<CalculatorState>({
     area: DEFAULTS.area,
     cleaningTypeId: DEFAULTS.cleaningTypeId,
+    dirtLevel: DEFAULTS.dirtLevel,
+    seats: DEFAULTS.seats,
     extras: {},
   });
   const [quiz, setQuiz] = useState<QuizState>({
@@ -57,18 +61,25 @@ export function QuizForm() {
   // Honeypot — скрытое поле-ловушка для ботов (люди его не видят и не заполняют)
   const [honeypot, setHoneypot] = useState('');
 
-  const breakdown = useMemo(() => calculatePrice(calc), [calc]);
+  const breakdown = useMemo(
+    () => calculatePrice(calc, pricing.types, pricing.extras),
+    [calc, pricing],
+  );
   const minDate = useMemo(() => todayISO(), []);
+  const isFurniture = calc.cleaningTypeId === 'furniture';
 
   // --- Валидация по шагам ---
   const canNext = useMemo(() => {
-    if (step === 0) return calc.area > 0 && breakdown.total > 0;
+    if (step === 0)
+      return (
+        (isFurniture ? calc.seats > 0 : calc.area > 0) && breakdown.total > 0
+      );
     if (step === 1)
       return (
         !!quiz.date && !!quiz.time && !!quiz.hasUtilities && !!quiz.access
       );
     return true;
-  }, [step, calc.area, breakdown.total, quiz]);
+  }, [step, calc.area, calc.seats, isFurniture, breakdown.total, quiz]);
 
   const validateContacts = () => {
     const errs: Partial<Record<keyof ContactState, boolean>> = {
@@ -96,6 +107,7 @@ export function QuizForm() {
         quiz,
         contact,
         total: breakdown.total,
+        breakdown, // расчёт по живым ценам — для консистентного текста заявки
       },
       honeypot,
     );
@@ -143,7 +155,7 @@ export function QuizForm() {
               transition={{ duration: 0.3 }}
             >
               {step === 0 && (
-                <CalculatorStep state={calc} onChange={setCalc} />
+                <CalculatorStep state={calc} onChange={setCalc} pricing={pricing} />
               )}
               {step === 1 && (
                 <SpecificsStep
@@ -203,7 +215,14 @@ export function QuizForm() {
           </div>
 
           <div className="space-y-3 px-6 py-5 text-sm">
-            <Row label={`Уборка · ${calc.area} м²`} value={formatPrice(breakdown.base)} />
+            <Row
+              label={
+                isFurniture
+                  ? `Мягкая мебель · ${calc.seats} мест`
+                  : `Уборка · ${calc.area} м²`
+              }
+              value={formatPrice(breakdown.base)}
+            />
             {breakdown.extras.map((e) => (
               <Row key={e.title} label={e.title} value={formatPrice(e.sum)} muted />
             ))}

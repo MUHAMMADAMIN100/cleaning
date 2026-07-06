@@ -41,9 +41,17 @@ enum FunnelStage {
 
 /// Тип уборки (совпадает с калькулятором лендинга)
 enum CleaningType {
-  MAINTENANCE // Поддерживающая
+  MAINTENANCE // Поддерживающая (архив — услуга закрыта, значение хранится для старых заказов)
   GENERAL // Генеральная
   POST_RENOVATION // После ремонта
+  FURNITURE // Мойка мягкой мебели (цена за посадочное место)
+}
+
+/// Степень загрязнения — определяет цену за м²
+enum DirtLevel {
+  LIGHT // лёгкая
+  MEDIUM // средняя
+  HEAVY // тяжёлая
 }
 
 /// Как клинер попадёт на объект
@@ -94,6 +102,10 @@ model User {
   fullName     String
   role         Role     @default(MANAGER)
   phone        String?
+  position     String? // должность («Операционный управляющий», «Логист»…)
+  duties       String? // должностные обязанности (список, по строке на пункт)
+  mainTask     String? // основная задача сотрудника
+  acceptsLeads Boolean  @default(true) // участвует в авто-распределении заявок с сайта
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -108,16 +120,64 @@ model User {
   notifications Notification[]
 }
 
-/// Клинер — член команды менеджера. НЕ имеет доступа в CRM.
+/// Клинер — член бригады. НЕ имеет доступа в CRM.
 model Cleaner {
   id        String   @id @default(cuid())
   fullName  String
   phone     String?
+  rate      Int      @default(230) // ставка, сомони за смену (бригадир — 330)
+  duties    String? // обязанности (для бригадиров)
   isActive  Boolean  @default(true)
   manager   User?    @relation(fields: [managerId], references: [id], onDelete: SetNull)
   managerId String?
+  brigade   Brigade? @relation("BrigadeMembers", fields: [brigadeId], references: [id], onDelete: SetNull)
+  brigadeId String?
+  leaderOf  Brigade? @relation("BrigadeLeader")
   orders    Order[]  @relation("OrderCleaners")
+  shifts    Shift[]
+  fines     Fine[]
   createdAt DateTime @default(now())
+
+  @@index([brigadeId])
+}
+
+/// Бригада клинеров (у бригады есть бригадир с повышенной ставкой)
+model Brigade {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  leader    Cleaner?  @relation("BrigadeLeader", fields: [leaderId], references: [id], onDelete: SetNull)
+  leaderId  String?   @unique
+  cleaners  Cleaner[] @relation("BrigadeMembers")
+  createdAt DateTime  @default(now())
+}
+
+/// Смена клинера (учёт по датам → расчёт выплат)
+model Shift {
+  id        String   @id @default(cuid())
+  date      DateTime // день смены (00:00 UTC)
+  cleaner   Cleaner  @relation(fields: [cleanerId], references: [id], onDelete: Cascade)
+  cleanerId String
+  rate      Int // ставка на момент смены (снапшот — не меняется задним числом)
+  note      String? // объект/комментарий
+  createdAt DateTime @default(now())
+
+  @@unique([cleanerId, date])
+  @@index([date])
+}
+
+/// Штраф клинеру (сумма + причина, вычитается из выплат)
+model Fine {
+  id          String   @id @default(cuid())
+  cleaner     Cleaner  @relation(fields: [cleanerId], references: [id], onDelete: Cascade)
+  cleanerId   String
+  amount      Int // сомони
+  reason      String
+  date        DateTime @default(now())
+  createdById String? // кто назначил (User.id)
+  createdAt   DateTime @default(now())
+
+  @@index([cleanerId, date])
+  @@index([date])
 }
 
 /// Клиент — ядро базы. Фиксируется КАЖДОЕ обращение.
@@ -152,7 +212,9 @@ model Order {
 
   // параметры уборки (из калькулятора / анкеты)
   cleaningType   CleaningType @default(GENERAL)
+  dirtLevel      DirtLevel? // степень загрязнения (для уборки по м²)
   area           Int          @default(0)
+  seats          Int? // посадочные места (для мойки мягкой мебели)
   address        String?
   estimatedPrice Int          @default(0) // расчёт с сайта
   finalPrice     Int? // итог после осмотра/КП
@@ -230,12 +292,17 @@ model Notification {
   @@index([userId, isRead])
 }
 
-/// Тариф — цена за м² по типу уборки (управление руководителем)
+/// Тариф — цены по типу уборки и степени загрязнения (управление руководителем)
 model Tariff {
   id          String       @id @default(cuid())
   key         CleaningType @unique
   title       String
-  pricePerSqm Int
+  pricePerSqm Int // legacy: держим = priceMedium (старые клиенты API)
+  priceLight  Int          @default(0) // лёгкая степень загрязнения
+  priceMedium Int          @default(0) // средняя
+  priceHeavy  Int          @default(0) // тяжёлая
+  hasLevels   Boolean      @default(true) // false — одна цена (мягкая мебель: за место)
+  unit        String       @default("м²") // единица: «м²» или «место»
   updatedAt   DateTime     @updatedAt
 }
 

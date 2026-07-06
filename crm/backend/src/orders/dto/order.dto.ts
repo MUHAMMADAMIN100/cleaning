@@ -10,6 +10,7 @@ import {
 import {
   AccessMethod,
   CleaningType,
+  DirtLevel,
   FunnelStage,
   LeadSource,
 } from '@prisma/client';
@@ -17,7 +18,9 @@ import {
 export class CreateOrderDto {
   @IsString() clientId: string;
   @IsOptional() @IsEnum(CleaningType) cleaningType?: CleaningType;
+  @IsOptional() @IsEnum(DirtLevel) dirtLevel?: DirtLevel;
   @IsOptional() @IsInt() @Min(0) area?: number;
+  @IsOptional() @IsInt() @Min(0) seats?: number;
   @IsOptional() @IsString() address?: string;
   @IsOptional() @IsInt() @Min(0) estimatedPrice?: number;
   @IsOptional() @IsEnum(LeadSource) source?: LeadSource;
@@ -27,7 +30,9 @@ export class CreateOrderDto {
 
 export class UpdateOrderDto {
   @IsOptional() @IsEnum(CleaningType) cleaningType?: CleaningType;
+  @IsOptional() @IsEnum(DirtLevel) dirtLevel?: DirtLevel;
   @IsOptional() @IsInt() @Min(0) area?: number;
+  @IsOptional() @IsInt() @Min(0) seats?: number;
   @IsOptional() @IsString() address?: string;
   @IsOptional() @IsInt() @Min(0) estimatedPrice?: number;
   @IsOptional() @IsInt() @Min(0) finalPrice?: number;

@@ -1,21 +1,16 @@
 import { Reveal } from '../ui/Reveal';
 import { IconCheck, IconArrowRight } from '../ui/icons';
-import { CLEANING_TYPES, CURRENCY } from '../../config/pricing';
+import { DIRT_LEVELS, CURRENCY } from '../../config/pricing';
+import { usePricing } from '../../lib/tariffs';
 import { scrollToId } from '../../lib/scroll';
 
-/** Что входит в каждый тариф (для карточек) */
+/** Что входит в каждую услугу (для карточек) */
 const INCLUDES: Record<string, string[]> = {
-  maintenance: [
-    'Влажная уборка полов',
-    'Удаление пыли с поверхностей',
-    'Уборка кухни и санузла',
-    'Вынос мусора',
-  ],
   general: [
-    'Всё из поддерживающей уборки',
+    'Уборка всей заявленной площади',
+    'Труднодоступные места',
     'Мытьё стёкол и зеркал',
     'Чистка техники снаружи',
-    'Труднодоступные места',
     'Дезинфекция санузлов',
   ],
   post_renovation: [
@@ -23,11 +18,19 @@ const INCLUDES: Record<string, string[]> = {
     'Очистка от краски и клея',
     'Мойка всех поверхностей',
     'Вынос строительного мусора',
-    'Финишная полировка',
+    'Подготовка к заселению',
+  ],
+  furniture: [
+    'Чистка мягкой мебели от пятен',
+    'Устранение неприятных запахов',
+    'Безопасная профессиональная химия',
+    'Возвращение первозданного вида',
   ],
 };
 
 export function Tariffs() {
+  const pricing = usePricing(); // живые цены из CRM
+
   return (
     <section
       id="tariffs"
@@ -37,20 +40,20 @@ export function Tariffs() {
         <Reveal>
           <div className="text-center">
             <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-white">
-              Виды уборки
+              Наши услуги
             </p>
             <h2 className="section-title mx-auto max-w-2xl">
-              Выберите подходящий формат уборки
+              Выберите подходящую услугу
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-lg text-white/60">
-              Три основных направления под любую задачу. Точную стоимость
+              Цена уборки зависит от степени загрязнения. Точную стоимость
               рассчитайте в калькуляторе ниже.
             </p>
           </div>
         </Reveal>
 
         <div className="mt-14 grid gap-6 lg:grid-cols-3">
-          {CLEANING_TYPES.map((type, i) => (
+          {pricing.types.map((type, i) => (
             <Reveal key={type.id} delay={i * 0.1}>
               <div
                 className={`relative flex h-full flex-col rounded-3xl p-7 transition-all duration-300 hover:-translate-y-2 ${
@@ -67,14 +70,39 @@ export function Tariffs() {
 
                 <h3 className="text-xl font-bold">{type.title}</h3>
                 <div className="mt-3 flex items-end gap-1.5">
-                  <span className={type.popular ? 'text-sm text-navy-400' : 'text-sm text-white/50'}>
-                    от
+                  {!type.perSeat && (
+                    <span className={type.popular ? 'text-sm text-navy-400' : 'text-sm text-white/50'}>
+                      от
+                    </span>
+                  )}
+                  <span className="text-4xl font-extrabold">
+                    {type.prices.light}
                   </span>
-                  <span className="text-4xl font-extrabold">{type.pricePerSqm}</span>
                   <span className={type.popular ? 'mb-1 text-sm text-navy-400' : 'mb-1 text-sm text-white/50'}>
-                    {CURRENCY} / м²
+                    {CURRENCY} / {type.perSeat ? 'место' : 'м²'}
                   </span>
                 </div>
+
+                {/* Цены по степени загрязнения */}
+                {!type.perSeat && (
+                  <div
+                    className={`mt-3 space-y-1 rounded-2xl p-3 text-xs ${
+                      type.popular ? 'bg-navy-50' : 'bg-white/5'
+                    }`}
+                  >
+                    {DIRT_LEVELS.map((d) => (
+                      <div key={d.id} className="flex items-center justify-between">
+                        <span className={type.popular ? 'text-navy-500' : 'text-white/60'}>
+                          {d.title} степень
+                        </span>
+                        <span className="font-semibold">
+                          {type.prices[d.id]} {CURRENCY}/м²
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <p className={`mt-3 text-sm leading-relaxed ${type.popular ? 'text-navy-600' : 'text-white/60'}`}>
                   {type.description}
                 </p>

@@ -1,8 +1,10 @@
 import type {
   CleaningType,
   ClientTag,
+  DirtLevel,
   FunnelStage,
   LeadSource,
+  Order,
   ScheduleType,
   TaskPriority,
   TaskStatus,
@@ -46,10 +48,34 @@ export const STAGE_COLOR: Record<FunnelStage, string> = {
 };
 
 export const TYPE_LABEL: Record<CleaningType, string> = {
-  MAINTENANCE: 'Поддерживающая',
+  MAINTENANCE: 'Поддерживающая (архив)',
   GENERAL: 'Генеральная',
   POST_RENOVATION: 'После ремонта',
+  FURNITURE: 'Мягкая мебель',
 };
+
+/** Типы, доступные для выбора в новых заказах (MAINTENANCE закрыта) */
+export const ACTIVE_TYPES: CleaningType[] = [
+  'GENERAL',
+  'POST_RENOVATION',
+  'FURNITURE',
+];
+
+export const DIRT_LABEL: Record<DirtLevel, string> = {
+  LIGHT: 'Лёгкая',
+  MEDIUM: 'Средняя',
+  HEAVY: 'Тяжёлая',
+};
+
+export const DIRT_ORDER: DirtLevel[] = ['LIGHT', 'MEDIUM', 'HEAVY'];
+
+/** «60 м²» / «3 места» — объём работ по типу услуги */
+export function formatVolume(
+  o: Pick<Order, 'cleaningType' | 'area' | 'seats'>,
+): string {
+  if (o.cleaningType === 'FURNITURE') return `${o.seats ?? 0} мест`;
+  return `${o.area} м²`;
+}
 
 export const SOURCE_LABEL: Record<LeadSource, string> = {
   SITE: 'Сайт',

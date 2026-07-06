@@ -1,9 +1,13 @@
-import type { CleaningType } from './config/pricing';
+import type { CleaningType, DirtLevel } from './config/pricing';
 
 /** Состояние калькулятора (Шаг 1) */
 export interface CalculatorState {
   area: number;
   cleaningTypeId: CleaningType['id'];
+  /** Степень загрязнения (для уборки по м²) */
+  dirtLevel: DirtLevel;
+  /** Посадочные места (для мойки мягкой мебели) */
+  seats: number;
   /** id доп.услуги -> количество (для услуг без количества: 0 = выкл, 1 = вкл) */
   extras: Record<string, number>;
 }
@@ -30,6 +34,8 @@ export interface OrderPayload {
   quiz: QuizState;
   contact: ContactState;
   total: number;
+  /** Расчёт по актуальным (живым) ценам на момент отправки */
+  breakdown?: PriceBreakdown;
 }
 
 /** Детализация расчёта (для отображения «Итого») */

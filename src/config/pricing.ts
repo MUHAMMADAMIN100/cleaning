@@ -2,46 +2,59 @@
  * ============================================================
  *  КОНФИГУРАЦИЯ ЦЕН «Archidea Cleaning»
  * ============================================================
- *  Все ставки и цены вынесены сюда, чтобы их можно было менять
- *  в одном месте без правок логики/верстки.
- *  Валюта — сомони (TJS). Цены тестовые (рыночные).
- *  В будущем эти значения можно отдавать из админки/CRM.
+ *  Здесь — резервные (стартовые) цены. Актуальные цены сайт
+ *  автоматически подтягивает из CRM (см. lib/tariffs.ts):
+ *  руководитель меняет тариф в CRM → цена обновляется на сайте.
+ *  Валюта — сомони (TJS).
  * ============================================================
  */
 
 export const CURRENCY = 'сомони';
 
-/** Тип уборки — ставка за 1 м² */
+/** Степень загрязнения — влияет на цену за м² */
+export type DirtLevel = 'light' | 'medium' | 'heavy';
+
+export const DIRT_LEVELS: { id: DirtLevel; title: string; hint: string }[] = [
+  { id: 'light', title: 'Лёгкая', hint: 'регулярно убираетесь' },
+  { id: 'medium', title: 'Средняя', hint: 'давно не было уборки' },
+  { id: 'heavy', title: 'Тяжёлая', hint: 'сильные загрязнения' },
+];
+
+/** Услуга: уборка по м² (3 цены по степени) или мебель (цена за место) */
 export interface CleaningType {
-  id: 'maintenance' | 'general' | 'post_renovation';
+  id: 'general' | 'post_renovation' | 'furniture';
   title: string;
-  pricePerSqm: number;
+  /** Цены по степени загрязнения (для мебели все три равны) */
+  prices: Record<DirtLevel, number>;
+  /** true — цена за посадочное место (мягкая мебель), не за м² */
+  perSeat?: boolean;
   description: string;
   popular?: boolean;
 }
 
 export const CLEANING_TYPES: CleaningType[] = [
   {
-    id: 'maintenance',
-    title: 'Поддерживающая',
-    pricePerSqm: 25,
-    description:
-      'Регулярная уборка для поддержания чистоты: полы, пыль, санузлы, кухня.',
-  },
-  {
     id: 'general',
     title: 'Генеральная',
-    pricePerSqm: 25,
+    prices: { light: 25, medium: 27, heavy: 29 },
     description:
-      'Глубокая уборка всей квартиры до блеска: труднодоступные места, техника снаружи, стекла.',
+      'Основательная уборка всей заявленной площади — абсолютная чистота даже в самых труднодоступных местах.',
     popular: true,
   },
   {
     id: 'post_renovation',
     title: 'После ремонта',
-    pricePerSqm: 25,
+    prices: { light: 30, medium: 32, heavy: 35 },
     description:
-      'Удаление строительной пыли, следов краски и клея, вынос мусора, мойка всех поверхностей.',
+      'Уборка от строительного мусора и послестроительных остатков, подготовка помещения к жизни.',
+  },
+  {
+    id: 'furniture',
+    title: 'Мойка мягкой мебели',
+    prices: { light: 70, medium: 70, heavy: 70 },
+    perSeat: true,
+    description:
+      'Чистка мягкой мебели от пятен, устранение запахов и возвращение первозданного вида.',
   },
 ];
 
@@ -93,4 +106,6 @@ export const MIN_ORDER_PRICE = 150;
 export const DEFAULTS = {
   area: 50,
   cleaningTypeId: 'general' as CleaningType['id'],
+  dirtLevel: 'light' as DirtLevel,
+  seats: 3,
 };

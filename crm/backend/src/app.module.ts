@@ -15,6 +15,8 @@ import { ScheduleModule as MeetingsModule } from './schedule/schedule.module';
 import { TariffsModule } from './tariffs/tariffs.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { LeadsModule } from './leads/leads.module';
+import { PayrollModule } from './payroll/payroll.module';
+import { SetupModule } from './setup/setup.module';
 import { BackupModule } from './backup/backup.module';
 import { AppController } from './app.controller';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -35,6 +37,8 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     TariffsModule,
     AnalyticsModule,
     LeadsModule,
+    PayrollModule,
+    SetupModule,
     BackupModule,
   ],
   controllers: [AppController],

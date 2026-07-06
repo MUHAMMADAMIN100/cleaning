@@ -11,7 +11,12 @@ import { useToast } from '../components/Toast';
 import { useDialog } from '../components/Dialog';
 import { Spinner, PageHeader, Badge } from '../components/ui';
 import { OrderModal } from '../components/OrderModal';
-import { STAGE_COLOR, TYPE_LABEL, formatPrice } from '../lib/labels';
+import {
+  STAGE_COLOR,
+  TYPE_LABEL,
+  formatPrice,
+  formatVolume,
+} from '../lib/labels';
 import type { BoardColumn, FunnelStage, Order } from '../types';
 
 export function Funnel() {
@@ -127,7 +132,7 @@ export function Funnel() {
                               )}
                             </div>
                             <div className="mt-1 text-xs text-navy-400">
-                              {TYPE_LABEL[o.cleaningType]} · {o.area} м²
+                              {TYPE_LABEL[o.cleaningType]} · {formatVolume(o)}
                             </div>
                             <div className="mt-2 flex items-center justify-between">
                               <span className="text-sm font-bold text-navy-700">

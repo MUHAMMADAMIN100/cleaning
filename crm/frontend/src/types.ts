@@ -10,7 +10,12 @@ export type FunnelStage =
   | 'DONE'
   | 'PAID'
   | 'REJECTED';
-export type CleaningType = 'MAINTENANCE' | 'GENERAL' | 'POST_RENOVATION';
+export type CleaningType =
+  | 'MAINTENANCE' // архив (старые заказы) — новая услуга не выбирается
+  | 'GENERAL'
+  | 'POST_RENOVATION'
+  | 'FURNITURE';
+export type DirtLevel = 'LIGHT' | 'MEDIUM' | 'HEAVY';
 export type ClientTag = 'VIP' | 'REGULAR' | 'REFUSED' | 'POTENTIAL';
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH';
 export type TaskStatus = 'OPEN' | 'IN_PROGRESS' | 'DONE';
@@ -30,6 +35,9 @@ export interface Manager {
   fullName: string;
   role: Role;
   phone?: string;
+  position?: string | null;
+  duties?: string | null;
+  mainTask?: string | null;
   isActive: boolean;
 }
 
@@ -37,9 +45,65 @@ export interface Cleaner {
   id: string;
   fullName: string;
   phone?: string;
+  rate: number;
+  duties?: string | null;
   isActive: boolean;
   managerId?: string;
   manager?: { id: string; fullName: string } | null;
+  brigadeId?: string | null;
+  brigade?: { id: string; name: string } | null;
+}
+
+export interface Brigade {
+  id: string;
+  name: string;
+  leaderId?: string | null;
+  leader?: { id: string; fullName: string } | null;
+  cleaners: Cleaner[];
+}
+
+export interface Shift {
+  id: string;
+  date: string;
+  cleanerId: string;
+  rate: number;
+  note?: string | null;
+  cleaner?: {
+    id: string;
+    fullName: string;
+    rate: number;
+    brigade?: { id: string; name: string } | null;
+  };
+}
+
+export interface Fine {
+  id: string;
+  cleanerId: string;
+  amount: number;
+  reason: string;
+  date: string;
+  cleaner?: {
+    id: string;
+    fullName: string;
+    brigade?: { id: string; name: string } | null;
+  };
+}
+
+export interface PayrollRow {
+  cleanerId: string;
+  fullName: string;
+  rate: number;
+  brigade?: string | null;
+  brigadeId?: string | null;
+  shifts: number;
+  accrued: number;
+  fines: number;
+  total: number;
+}
+
+export interface PayrollSummary {
+  rows: PayrollRow[];
+  totals: { shifts: number; accrued: number; fines: number; total: number };
 }
 
 export interface Client {
@@ -64,7 +128,9 @@ export interface Order {
   stage: FunnelStage;
   source: LeadSource;
   cleaningType: CleaningType;
+  dirtLevel?: DirtLevel | null;
   area: number;
+  seats?: number | null;
   address?: string;
   estimatedPrice: number;
   finalPrice?: number | null;
@@ -133,7 +199,19 @@ export interface Analytics {
   managerWorkload?: { id: string; name: string; active: number; paid: number }[];
 }
 
+export interface Tariff {
+  id: string;
+  key: CleaningType;
+  title: string;
+  pricePerSqm: number; // legacy = priceMedium
+  priceLight: number;
+  priceMedium: number;
+  priceHeavy: number;
+  hasLevels: boolean;
+  unit: string; // «м²» или «место»
+}
+
 export interface Tariffs {
-  tariffs: { id: string; key: CleaningType; title: string; pricePerSqm: number }[];
+  tariffs: Tariff[];
   extras: { id: string; key: string; title: string; price: number; hasQty: boolean }[];
 }

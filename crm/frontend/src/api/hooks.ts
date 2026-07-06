@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './client';
 
 interface Options {
@@ -48,6 +48,21 @@ export function useFetch<T>(url: string | null, opts: Options = {}) {
   const [loading, setLoading] = useState(() => !(url && cache.has(url)));
   const [error, setError] = useState<string | null>(null);
 
+  // при смене URL — мгновенный сброс состояния прямо в рендере,
+  // чтобы ни один кадр не показывал данные предыдущего URL
+  const [prevUrl, setPrevUrl] = useState(url);
+  if (prevUrl !== url) {
+    setPrevUrl(url);
+    setData(url && cache.has(url) ? (cache.get(url) as T) : null);
+    setLoading(!(url && cache.has(url)));
+    setError(null);
+  }
+
+  // защита от «отставших» ответов: ответ старого URL не должен
+  // перезаписать данные нового
+  const urlRef = useRef(url);
+  urlRef.current = url;
+
   const load = useCallback(
     async (silent: boolean) => {
       if (!url) {
@@ -65,14 +80,16 @@ export function useFetch<T>(url: string | null, opts: Options = {}) {
       try {
         const res = await api.get<T>(url);
         cache.set(url, res.data);
+        if (urlRef.current !== url) return; // URL уже сменился — не трогаем состояние
         setData(res.data);
         setError(null);
       } catch (e: any) {
+        if (urlRef.current !== url) return;
         if (!hasCache && !silent) {
           setError(e?.response?.data?.message || 'Ошибка загрузки');
         }
       } finally {
-        setLoading(false);
+        if (urlRef.current === url) setLoading(false);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps

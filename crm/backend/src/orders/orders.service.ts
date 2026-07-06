@@ -106,7 +106,10 @@ export class OrdersService {
         clientId: dto.clientId,
         managerId,
         cleaningType: dto.cleaningType ?? 'GENERAL',
+        dirtLevel:
+          dto.cleaningType === 'FURNITURE' ? null : dto.dirtLevel ?? null,
         area: dto.area ?? 0,
+        seats: dto.seats ?? null,
         address: dto.address,
         estimatedPrice,
         source: dto.source ?? 'CALL',
@@ -127,7 +130,9 @@ export class OrdersService {
     const data: Prisma.OrderUpdateInput = {} as any;
     const assignable: (keyof UpdateOrderDto)[] = [
       'cleaningType',
+      'dirtLevel',
       'area',
+      'seats',
       'address',
       'estimatedPrice',
       'finalPrice',
@@ -138,6 +143,8 @@ export class OrdersService {
     for (const key of assignable) {
       if (dto[key] !== undefined) (data as any)[key] = dto[key];
     }
+    // у мойки мебели нет степени загрязнения
+    if ((data as any).cleaningType === 'FURNITURE') (data as any).dirtLevel = null;
     if (dto.inspectionDate) (data as any).inspectionDate = new Date(dto.inspectionDate);
     if (dto.scheduledDate) (data as any).scheduledDate = new Date(dto.scheduledDate);
     if (dto.managerId && user.role === Role.DIRECTOR)

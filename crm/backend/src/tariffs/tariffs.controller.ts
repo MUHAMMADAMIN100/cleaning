@@ -22,9 +22,15 @@ export class TariffsController {
   @Patch('tariff/:key')
   updateTariff(
     @Param('key') key: CleaningType,
-    @Body('pricePerSqm') pricePerSqm: number,
+    @Body()
+    body: {
+      priceLight?: number;
+      priceMedium?: number;
+      priceHeavy?: number;
+      pricePerSqm?: number;
+    },
   ) {
-    return this.service.updateTariff(key, Number(pricePerSqm));
+    return this.service.updateTariff(key, body);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

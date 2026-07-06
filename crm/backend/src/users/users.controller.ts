@@ -56,6 +56,9 @@ export class UsersController {
       fullName?: string;
       login?: string;
       phone?: string;
+      position?: string;
+      duties?: string;
+      mainTask?: string;
       role?: Role;
       isActive?: boolean;
       password?: string;

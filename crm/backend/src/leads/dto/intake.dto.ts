@@ -5,7 +5,9 @@ export class LeadIntakeDto {
   @Allow()
   calculator: {
     area: number;
-    cleaningTypeId: 'maintenance' | 'general' | 'post_renovation';
+    cleaningTypeId: 'maintenance' | 'general' | 'post_renovation' | 'furniture';
+    dirtLevel?: 'light' | 'medium' | 'heavy';
+    seats?: number;
     extras?: Record<string, number>;
   };
 

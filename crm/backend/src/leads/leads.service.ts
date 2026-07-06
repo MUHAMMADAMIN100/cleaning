@@ -6,6 +6,7 @@ import {
 import {
   AccessMethod,
   CleaningType,
+  DirtLevel,
   LeadSource,
   NotificationType,
   Role,
@@ -16,9 +17,16 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { LeadIntakeDto } from './dto/intake.dto';
 
 const TYPE_MAP: Record<string, CleaningType> = {
-  maintenance: CleaningType.MAINTENANCE,
+  maintenance: CleaningType.GENERAL, // услуга закрыта — старые кэши сайта считаем генеральной
   general: CleaningType.GENERAL,
   post_renovation: CleaningType.POST_RENOVATION,
+  furniture: CleaningType.FURNITURE,
+};
+
+const DIRT_MAP: Record<string, DirtLevel> = {
+  light: DirtLevel.LIGHT,
+  medium: DirtLevel.MEDIUM,
+  heavy: DirtLevel.HEAVY,
 };
 
 @Injectable()
@@ -81,7 +89,18 @@ export class LeadsService {
         stage: 'NEW',
         source: LeadSource.SITE,
         cleaningType,
-        area: dto.calculator?.area ?? 0,
+        dirtLevel:
+          cleaningType === CleaningType.FURNITURE
+            ? null
+            : DIRT_MAP[dto.calculator?.dirtLevel ?? ''] ?? null,
+        area:
+          cleaningType === CleaningType.FURNITURE
+            ? 0
+            : dto.calculator?.area ?? 0,
+        seats:
+          cleaningType === CleaningType.FURNITURE
+            ? dto.calculator?.seats ?? 0
+            : null,
         estimatedPrice: dto.total ?? 0,
         address: dto.contact.address,
         preferredDate: preferred,
@@ -99,18 +118,25 @@ export class LeadsService {
               ? AccessMethod.ONSITE
               : null,
         comment: dto.quiz?.comment,
-        extras: dto.calculator?.extras ?? undefined,
+        extras:
+          cleaningType === CleaningType.FURNITURE
+            ? undefined
+            : dto.calculator?.extras ?? undefined,
         isLarge: (dto.total ?? 0) >= 2000,
       },
     });
 
     // 6. Уведомляем назначенного менеджера (или всех руководителей, если менеджеров нет)
     if (managerId) {
+      const volume =
+        cleaningType === CleaningType.FURNITURE
+          ? `${dto.calculator?.seats ?? 0} мест`
+          : `${dto.calculator?.area ?? 0} м²`;
       await this.notifications.notify({
         userId: managerId,
         type: NotificationType.NEW_LEAD,
         title: 'Новая заявка с сайта',
-        message: `${client.fullName} · ${dto.calculator?.area ?? 0} м² · ${dto.total ?? 0} сомони`,
+        message: `${client.fullName} · ${volume} · ${dto.total ?? 0} сомони`,
         orderId: order.id,
       });
     } else {
@@ -126,10 +152,10 @@ export class LeadsService {
     return { ok: true, orderId: order.id };
   }
 
-  /** Менеджер с наименьшим числом активных заказов */
+  /** Менеджер отдела продаж с наименьшим числом активных заказов */
   private async pickManager(): Promise<string | null> {
     const managers = await this.prisma.user.findMany({
-      where: { role: Role.MANAGER, isActive: true },
+      where: { role: Role.MANAGER, isActive: true, acceptsLeads: true },
       select: { id: true },
     });
     if (managers.length === 0) return null;

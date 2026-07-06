@@ -12,12 +12,19 @@ import {
   STAGE_COLOR,
   TYPE_LABEL,
   SOURCE_LABEL,
+  ACTIVE_TYPES,
+  DIRT_LABEL,
+  DIRT_ORDER,
   formatPrice,
   formatDate,
 } from '../lib/labels';
-import type { CleaningType, Cleaner, FunnelStage, Order } from '../types';
-
-const TYPES: CleaningType[] = ['MAINTENANCE', 'GENERAL', 'POST_RENOVATION'];
+import type {
+  CleaningType,
+  Cleaner,
+  DirtLevel,
+  FunnelStage,
+  Order,
+} from '../types';
 
 interface Props {
   orderId: string | null;
@@ -49,7 +56,9 @@ export function OrderModal({
   const [finalPrice, setFinalPrice] = useState<string>('');
   const [selectedCleaners, setSelectedCleaners] = useState<string[]>([]);
   const [editType, setEditType] = useState<CleaningType>('GENERAL');
+  const [editDirt, setEditDirt] = useState<DirtLevel | ''>('');
   const [editArea, setEditArea] = useState('');
+  const [editSeats, setEditSeats] = useState('');
   const [editAddress, setEditAddress] = useState('');
   const [error, setError] = useState('');
   const seededRef = useRef(false);
@@ -62,7 +71,9 @@ export function OrderModal({
     setFinalPrice(o.finalPrice != null ? String(o.finalPrice) : '');
     setSelectedCleaners((o.cleaners ?? []).map((x) => x.id));
     setEditType(o.cleaningType);
+    setEditDirt(o.dirtLevel ?? '');
     setEditArea(String(o.area ?? ''));
+    setEditSeats(o.seats != null ? String(o.seats) : '');
     setEditAddress(o.address ?? '');
   };
 
@@ -110,12 +121,17 @@ export function OrderModal({
     }
 
     // 1) Оптимистично обновляем карточку/доску и закрываем окно — без ожидания
-    const newFinal = finalPrice !== '' ? Number(finalPrice) : order.finalPrice;
-    const newArea = editArea !== '' ? Number(editArea) : order.area;
+    const toInt = (s: string) => Math.round(Number(s)); // бэкенд принимает только целые
+    const newFinal = finalPrice !== '' ? toInt(finalPrice) : order.finalPrice;
+    const newArea = editArea !== '' ? toInt(editArea) : order.area;
+    const newSeats = editSeats !== '' ? toInt(editSeats) : order.seats;
+    const newDirt = editType === 'FURNITURE' ? null : editDirt || null;
     onOptimistic?.(order.id, {
       stage,
       finalPrice: newFinal,
       area: newArea,
+      seats: newSeats,
+      dirtLevel: newDirt,
       cleaningType: editType,
       address: editAddress || order.address,
       scheduledDate: scheduledDate || order.scheduledDate,
@@ -130,9 +146,14 @@ export function OrderModal({
     try {
       await api.patch(`/orders/${order.id}`, {
         cleaningType: editType,
+        // null очищает степень (для мебели); поле шлём всегда
+        dirtLevel: newDirt,
         area: newArea,
+        ...(editType === 'FURNITURE' && editSeats !== ''
+          ? { seats: toInt(editSeats) }
+          : {}),
         address: editAddress || undefined,
-        ...(finalPrice !== '' ? { finalPrice: Number(finalPrice) } : {}),
+        ...(finalPrice !== '' ? { finalPrice: toInt(finalPrice) } : {}),
       });
       await api.patch(`/orders/${order.id}/cleaners`, {
         cleanerIds: selectedCleaners,
@@ -203,28 +224,44 @@ export function OrderModal({
           {/* Параметры заявки (редактирование) */}
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <label className="label">Тип уборки</label>
+              <label className="label">Услуга</label>
               <select
                 className="input"
                 value={editType}
                 onChange={(e) => setEditType(e.target.value as CleaningType)}
               >
-                {TYPES.map((t) => (
+                {/* старый заказ с закрытой услугой: опция остаётся на всё время редактирования */}
+                {(order.cleaningType === 'MAINTENANCE'
+                  ? (['MAINTENANCE', ...ACTIVE_TYPES] as CleaningType[])
+                  : ACTIVE_TYPES
+                ).map((t) => (
                   <option key={t} value={t}>
                     {TYPE_LABEL[t]}
                   </option>
                 ))}
               </select>
             </div>
-            <div>
-              <label className="label">Площадь, м²</label>
-              <input
-                type="number"
-                className="input"
-                value={editArea}
-                onChange={(e) => setEditArea(e.target.value)}
-              />
-            </div>
+            {editType === 'FURNITURE' ? (
+              <div>
+                <label className="label">Посадочных мест</label>
+                <input
+                  type="number"
+                  className="input"
+                  value={editSeats}
+                  onChange={(e) => setEditSeats(e.target.value)}
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="label">Площадь, м²</label>
+                <input
+                  type="number"
+                  className="input"
+                  value={editArea}
+                  onChange={(e) => setEditArea(e.target.value)}
+                />
+              </div>
+            )}
             <div>
               <label className="label">Адрес</label>
               <input
@@ -235,6 +272,28 @@ export function OrderModal({
               />
             </div>
           </div>
+
+          {/* Степень загрязнения (для уборки по м²) */}
+          {editType !== 'FURNITURE' && (
+            <div>
+              <label className="label">Степень загрязнения</label>
+              <div className="flex flex-wrap gap-2">
+                {DIRT_ORDER.map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setEditDirt(d)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                      editDirt === d
+                        ? 'bg-navy-500 text-white ring-2 ring-navy-300'
+                        : 'border border-navy-200 bg-white text-navy-500 hover:bg-navy-50'
+                    }`}
+                  >
+                    {DIRT_LABEL[d]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Текущий этап */}
           <div>

@@ -1,11 +1,15 @@
 import { motion } from 'framer-motion';
 import { IconArrowDown, IconCheck } from '../ui/icons';
 import { COMPANY } from '../../config/company';
+import { usePricing } from '../../lib/tariffs';
 import { scrollToId } from '../../lib/scroll';
 
 const PERKS = ['Безопасная химия', 'Гарантия качества', 'Оплата после уборки'];
 
 export function Hero() {
+  const pricing = usePricing();
+  const minPrice =
+    pricing.types.find((t) => t.id === 'general')?.prices.light ?? 25;
   return (
     <section
       id="top"
@@ -68,7 +72,7 @@ export function Hero() {
             transition={{ duration: 0.7, delay: 0.2 }}
             className="mt-5 max-w-md text-lg text-white/70"
           >
-            Поддерживающая, генеральная уборка и уборка после ремонта.
+            Генеральная уборка, уборка после ремонта и мойка мягкой мебели.
             Проверенный персонал, безопасные средства и гарантия результата.
           </motion.p>
 
@@ -117,12 +121,14 @@ export function Hero() {
               </span>
             </div>
             <div className="mt-2 flex items-end gap-2">
-              <span className="text-5xl font-extrabold text-navy-900">25</span>
+              <span className="text-5xl font-extrabold text-navy-900">
+                {minPrice}
+              </span>
               <span className="mb-1.5 text-navy-500">сомони / м²</span>
             </div>
             <div className="mt-6 space-y-3">
               {[
-                ['Опытные клинеры', '5+ лет'],
+                ['Выполнено заказов', '10 000+'],
                 ['Выезд по городу', `${COMPANY.city}`],
                 ['Время уборки', 'от 2 часов'],
               ].map(([k, v]) => (

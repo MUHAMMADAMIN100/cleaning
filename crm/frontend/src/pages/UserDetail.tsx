@@ -34,6 +34,9 @@ interface UserDetailData {
   fullName: string;
   role: Role;
   phone?: string;
+  position?: string | null;
+  duties?: string | null;
+  mainTask?: string | null;
   isActive: boolean;
   createdAt: string;
   stats: {
@@ -120,7 +123,12 @@ export function UserDetail() {
             <div className="text-xl font-bold text-navy-900">
               {data.fullName}
             </div>
-            <div className="text-sm text-navy-400">@{data.login}</div>
+            <div className="text-sm text-navy-400">
+              @{data.login}
+              {data.position && (
+                <span className="text-navy-600"> · {data.position}</span>
+              )}
+            </div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <Badge
                 className={
@@ -168,6 +176,43 @@ export function UserDetail() {
             </dd>
           </div>
         </dl>
+
+        {(data.duties || data.mainTask) && (
+          <div className="mt-5 border-t border-navy-100 pt-5">
+            {data.duties && (
+              <>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-navy-400">
+                  Отвечает за
+                </div>
+                <ul className="grid gap-1.5 sm:grid-cols-2">
+                  {data.duties
+                    .split('\n')
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                    .map((d) => (
+                      <li
+                        key={d}
+                        className="flex items-start gap-2 text-sm text-navy-800"
+                      >
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-navy-400" />
+                        {d}
+                      </li>
+                    ))}
+                </ul>
+              </>
+            )}
+            {data.mainTask && (
+              <div className="mt-4 rounded-xl bg-navy-50 p-3.5">
+                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-navy-500">
+                  Основная задача
+                </div>
+                <div className="text-sm font-medium text-navy-900">
+                  {data.mainTask}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
@@ -257,6 +302,9 @@ function EditUserModal({
   const [fullName, setFullName] = useState(user.fullName);
   const [login, setLogin] = useState(user.login);
   const [phone, setPhone] = useState(user.phone ?? '');
+  const [position, setPosition] = useState(user.position ?? '');
+  const [duties, setDuties] = useState(user.duties ?? '');
+  const [mainTask, setMainTask] = useState(user.mainTask ?? '');
   const [role, setRole] = useState<Role>(user.role);
   const [isActive, setIsActive] = useState(user.isActive);
   const [password, setPassword] = useState('');
@@ -269,6 +317,9 @@ function EditUserModal({
         fullName,
         login,
         phone,
+        position,
+        duties,
+        mainTask,
         role,
         isActive,
         ...(password ? { password } : {}),
@@ -296,6 +347,33 @@ function EditUserModal({
         <div>
           <label className="label">Телефон</label>
           <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+992 ..." />
+        </div>
+        <div>
+          <label className="label">Должность</label>
+          <input
+            className="input"
+            value={position}
+            onChange={(e) => setPosition(e.target.value)}
+            placeholder="Например: Операционный управляющий"
+          />
+        </div>
+        <div>
+          <label className="label">Обязанности (по одной на строку)</label>
+          <textarea
+            className="input min-h-[110px] resize-none"
+            value={duties}
+            onChange={(e) => setDuties(e.target.value)}
+            placeholder={'Контроль качества\nРабота с клиентами'}
+          />
+        </div>
+        <div>
+          <label className="label">Основная задача</label>
+          <input
+            className="input"
+            value={mainTask}
+            onChange={(e) => setMainTask(e.target.value)}
+            placeholder="Главная цель сотрудника"
+          />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>

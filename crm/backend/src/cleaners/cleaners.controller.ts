@@ -34,7 +34,14 @@ export class CleanersController {
   @Post()
   create(
     @CurrentUser() user: AuthUser,
-    @Body() body: { fullName: string; phone?: string; managerId?: string },
+    @Body()
+    body: {
+      fullName: string;
+      phone?: string;
+      rate?: number;
+      brigadeId?: string;
+      managerId?: string;
+    },
   ) {
     return this.service.create(user, body);
   }
@@ -42,7 +49,14 @@ export class CleanersController {
   @Patch(':id')
   update(
     @Param('id') id: string,
-    @Body() body: { fullName?: string; phone?: string; isActive?: boolean },
+    @Body()
+    body: {
+      fullName?: string;
+      phone?: string;
+      rate?: number;
+      brigadeId?: string | null;
+      isActive?: boolean;
+    },
   ) {
     return this.service.update(id, body);
   }
@@ -50,5 +64,34 @@ export class CleanersController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.service.remove(id);
+  }
+}
+
+@UseGuards(JwtAuthGuard)
+@Controller('brigades')
+export class BrigadesController {
+  constructor(private service: CleanersService) {}
+
+  @Get()
+  list() {
+    return this.service.listBrigades();
+  }
+
+  @Post()
+  create(@Body() body: { name: string }) {
+    return this.service.createBrigade(body);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body() body: { name?: string; leaderId?: string | null },
+  ) {
+    return this.service.updateBrigade(id, body);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.service.removeBrigade(id);
   }
 }

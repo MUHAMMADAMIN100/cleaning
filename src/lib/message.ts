@@ -1,4 +1,4 @@
-import { CLEANING_TYPES } from '../config/pricing';
+import { CLEANING_TYPES, DIRT_LEVELS } from '../config/pricing';
 import { COMPANY } from '../config/company';
 import { calculatePrice } from './calc';
 import { formatPrice } from './format';
@@ -20,17 +20,24 @@ const ACCESS_LABEL: Record<string, string> = {
  */
 export function buildOrderText(order: OrderPayload): string {
   const { calculator, quiz, contact } = order;
-  const breakdown = calculatePrice(calculator);
+  // расчёт из заявки (живые цены); резерв — пересчёт по статичным
+  const breakdown = order.breakdown ?? calculatePrice(calculator);
   const type = CLEANING_TYPES.find((t) => t.id === calculator.cleaningTypeId);
+  const isFurniture = !!type?.perSeat;
+  const dirt = DIRT_LEVELS.find((d) => d.id === calculator.dirtLevel);
 
   const lines: string[] = [];
   lines.push('🧽 НОВАЯ ЗАЯВКА — Archidea Cleaning');
   lines.push('');
   lines.push('━━━━━━━━━━━━━━━━');
   lines.push('📐 РАСЧЁТ');
-  lines.push(`• Площадь: ${calculator.area} м²`);
-  lines.push(`• Тип уборки: ${type?.title ?? '—'} (${type?.pricePerSqm ?? 0} сомони/м²)`);
-  lines.push(`• Базовая стоимость: ${formatPrice(breakdown.base)}`);
+  lines.push(`• Услуга: ${type?.title ?? '—'}`);
+  if (isFurniture) {
+    lines.push(`• Посадочных мест: ${calculator.seats}`);
+  } else {
+    lines.push(`• Площадь: ${calculator.area} м²`);
+    lines.push(`• Степень загрязнения: ${dirt?.title ?? '—'}`);
+  }
   if (breakdown.extras.length) {
     lines.push('• Доп. услуги:');
     for (const e of breakdown.extras) {
@@ -39,7 +46,7 @@ export function buildOrderText(order: OrderPayload): string {
   } else {
     lines.push('• Доп. услуги: нет');
   }
-  lines.push(`💰 ИТОГО: ${formatPrice(breakdown.total)}`);
+  lines.push(`💰 ИТОГО: ${formatPrice(order.total)}`);
   lines.push('');
   lines.push('━━━━━━━━━━━━━━━━');
   lines.push('📋 СПЕЦИФИКА ОБЪЕКТА');

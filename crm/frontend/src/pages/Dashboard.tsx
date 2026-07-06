@@ -10,7 +10,7 @@ import {
 import { useFetch } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 import { Spinner, PageHeader } from '../components/ui';
-import { formatPrice } from '../lib/labels';
+import { formatPrice, formatVolume } from '../lib/labels';
 import type { Order, Task } from '../types';
 
 interface Summary {
@@ -108,7 +108,7 @@ export function Dashboard() {
                     {o.client?.fullName}
                   </div>
                   <div className="text-xs text-navy-400">
-                    {o.area} м² · {o.client?.phone}
+                    {formatVolume(o)} · {o.client?.phone}
                   </div>
                 </div>
                 <div className="text-sm font-bold text-navy-700">
