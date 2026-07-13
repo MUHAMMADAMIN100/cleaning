@@ -82,14 +82,20 @@ export function Funnel() {
       rejectionReason = reason;
     }
 
+    // Оптимистично: карточка переезжает мгновенно, запрос уходит в фон.
+    // На успехе НЕ перезапрашиваем доску (иначе карточка «оседает» после
+    // ответа сервера) — фоновое авто-обновление сверит состояние само.
+    // Откат — только при ошибке.
     applyPatch(draggableId, { stage: newStage, rejectionReason });
-    api
-      .patch(`/orders/${draggableId}/stage`, { stage: newStage, rejectionReason })
-      .then(() => reload())
-      .catch((e) => {
-        toast.error(e?.response?.data?.message || 'Не удалось сменить этап');
-        reload();
+    try {
+      await api.patch(`/orders/${draggableId}/stage`, {
+        stage: newStage,
+        rejectionReason,
       });
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Не удалось сменить этап');
+      reload(); // вернуть серверное состояние
+    }
   };
 
   if (loading || !data) return <Spinner />;
