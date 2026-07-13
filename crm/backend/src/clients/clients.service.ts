@@ -31,9 +31,12 @@ export class ClientsService {
     if (q.tag) where.tags = { has: q.tag };
     if (q.source) where.source = q.source;
     if (q.search) {
+      const digits = normalizePhone(q.search);
       where.OR = [
         { fullName: { contains: q.search, mode: 'insensitive' } },
-        { phone: { contains: normalizePhone(q.search) } },
+        // по телефону — только если в запросе есть цифры
+        // (иначе contains: "" совпадал бы со всеми клиентами)
+        ...(digits ? [{ phone: { contains: digits } }] : []),
       ];
     }
 

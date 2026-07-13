@@ -60,10 +60,12 @@ export class OrdersService {
     if (q.stage) where.stage = q.stage;
     if (user.role === Role.DIRECTOR && q.managerId) where.managerId = q.managerId;
     if (q.search) {
+      const digits = q.search.replace(/\D/g, '');
       where.client = {
         OR: [
           { fullName: { contains: q.search, mode: 'insensitive' } },
-          { phone: { contains: q.search.replace(/\D/g, '') } },
+          // по телефону — только при наличии цифр (иначе совпало бы со всеми)
+          ...(digits ? [{ phone: { contains: digits } }] : []),
         ],
       };
     }
