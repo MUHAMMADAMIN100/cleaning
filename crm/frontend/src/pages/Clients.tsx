@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Download, Search } from 'lucide-react';
 import { api } from '../api/client';
-import { useFetch } from '../api/hooks';
+import { useFetch, mutateCache } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 import { Spinner, PageHeader, Badge, Modal, EmptyState } from '../components/ui';
 import { useToast } from '../components/Toast';
@@ -10,13 +10,35 @@ import {
   TAG_LABEL,
   TAG_COLOR,
   SOURCE_LABEL,
+  TYPE_LABEL,
+  ACTIVE_TYPES,
+  DIRT_LABEL,
+  DIRT_ORDER,
   formatDate,
 } from '../lib/labels';
 import { tempId, nowISO } from '../lib/util';
-import type { Client, ClientTag, LeadSource, Manager } from '../types';
+import type {
+  BoardColumn,
+  CleaningType,
+  Client,
+  ClientTag,
+  DirtLevel,
+  LeadSource,
+  Manager,
+  Order,
+} from '../types';
 
 const TAGS: ClientTag[] = ['VIP', 'REGULAR', 'POTENTIAL', 'REFUSED'];
 const SOURCES: LeadSource[] = ['SITE', 'INSTAGRAM', 'CALL', 'RECOMMENDATION'];
+
+/** Данные заявки при добавлении клиента (если создаём заявку в воронке) */
+export interface NewOrderInput {
+  cleaningType: CleaningType;
+  dirtLevel?: DirtLevel;
+  area: number;
+  seats?: number;
+  estimatedPrice: number;
+}
 
 export function Clients() {
   const { user } = useAuth();
@@ -39,8 +61,9 @@ export function Clients() {
   );
   const toast = useToast();
 
-  // оптимистично: клиент появляется в списке сразу
-  const createClient = (
+  // оптимистично: клиент появляется в списке сразу; при необходимости
+  // создаём и заявку в воронке (этап «Новая заявка»)
+  const createClient = async (
     payload: {
       fullName: string;
       phone: string;
@@ -48,6 +71,7 @@ export function Clients() {
       managerId?: string;
     },
     managerName: string | null,
+    order: NewOrderInput | null,
   ) => {
     const id = tempId();
     const optimistic: Client = {
@@ -61,16 +85,32 @@ export function Clients() {
       manager: managerName
         ? { id: payload.managerId ?? '', fullName: managerName }
         : null,
-      _count: { orders: 0 },
+      _count: { orders: order ? 1 : 0 },
     };
     setData((list) => (list ? [optimistic, ...list] : [optimistic]));
-    api
-      .post('/clients', payload)
-      .then(() => reload())
-      .catch((e) => {
-        toast.error(e?.response?.data?.message || 'Не удалось создать клиента');
-        setData((list) => (list ? list.filter((c) => c.id !== id) : list));
-      });
+    try {
+      const client = (await api.post<Client>('/clients', payload)).data;
+      if (order) {
+        const created = (
+          await api.post<Order>('/orders', {
+            clientId: client.id,
+            source: payload.source,
+            managerId: payload.managerId,
+            ...order,
+          })
+        ).data;
+        // мгновенно показать заявку в кэше воронки (если он уже загружен)
+        mutateCache<BoardColumn[]>('/orders/board', (cols) =>
+          cols.map((c) =>
+            c.stage === 'NEW' ? { ...c, orders: [created, ...c.orders] } : c,
+          ),
+        );
+      }
+      reload();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Не удалось создать клиента');
+      setData((list) => (list ? list.filter((c) => c.id !== id) : list));
+    }
   };
 
   // Пагинация по 10 строк
@@ -282,6 +322,7 @@ function AddClientModal({
       managerId?: string;
     },
     managerName: string | null,
+    order: NewOrderInput | null,
   ) => void;
   isDirector: boolean;
 }) {
@@ -289,16 +330,35 @@ function AddClientModal({
   const [phone, setPhone] = useState('');
   const [source, setSource] = useState<LeadSource>('CALL');
   const [managerId, setManagerId] = useState('');
+  // заявка в воронке
+  const [makeOrder, setMakeOrder] = useState(true);
+  const [cleaningType, setCleaningType] = useState<CleaningType>('GENERAL');
+  const [dirtLevel, setDirtLevel] = useState<DirtLevel>('LIGHT');
+  const [area, setArea] = useState('');
+  const [seats, setSeats] = useState('');
+  const [price, setPrice] = useState('');
   const { data: managers } = useFetch<Manager[]>(
     isDirector ? '/users/managers' : null,
   );
+  const isFurniture = cleaningType === 'FURNITURE';
 
   const submit = () => {
     const managerName =
       (managers ?? []).find((m) => m.id === managerId)?.fullName ?? null;
+    const toInt = (s: string) => Math.round(Number(s)) || 0;
+    const order: NewOrderInput | null = makeOrder
+      ? {
+          cleaningType,
+          dirtLevel: isFurniture ? undefined : dirtLevel,
+          area: isFurniture ? 0 : toInt(area),
+          seats: isFurniture ? toInt(seats) : undefined,
+          estimatedPrice: toInt(price),
+        }
+      : null;
     onCreate(
       { fullName, phone, source, managerId: managerId || undefined },
       managerName,
+      order,
     );
     onClose();
   };
@@ -333,6 +393,75 @@ function AddClientModal({
             </select>
           </div>
         )}
+
+        {/* Заявка в воронке */}
+        <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-navy-100 bg-navy-50/50 px-3 py-2.5">
+          <input
+            type="checkbox"
+            checked={makeOrder}
+            onChange={(e) => setMakeOrder(e.target.checked)}
+            className="h-4 w-4 accent-navy-500"
+          />
+          <span className="text-sm font-medium text-navy-800">
+            Создать заявку в воронке (этап «Новая заявка»)
+          </span>
+        </label>
+
+        {makeOrder && (
+          <div className="space-y-3 rounded-xl border border-navy-100 p-3">
+            <div>
+              <label className="label">Услуга</label>
+              <select
+                className="input"
+                value={cleaningType}
+                onChange={(e) => setCleaningType(e.target.value as CleaningType)}
+              >
+                {ACTIVE_TYPES.map((t) => (
+                  <option key={t} value={t}>{TYPE_LABEL[t]}</option>
+                ))}
+              </select>
+            </div>
+            {!isFurniture && (
+              <div>
+                <label className="label">Степень загрязнения</label>
+                <div className="flex flex-wrap gap-2">
+                  {DIRT_ORDER.map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setDirtLevel(d)}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                        dirtLevel === d
+                          ? 'bg-navy-500 text-white ring-2 ring-navy-300'
+                          : 'border border-navy-200 bg-white text-navy-500 hover:bg-navy-50'
+                      }`}
+                    >
+                      {DIRT_LABEL[d]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              {isFurniture ? (
+                <div>
+                  <label className="label">Посадочных мест</label>
+                  <input type="number" className="input" value={seats} onChange={(e) => setSeats(e.target.value)} />
+                </div>
+              ) : (
+                <div>
+                  <label className="label">Площадь, м²</label>
+                  <input type="number" className="input" value={area} onChange={(e) => setArea(e.target.value)} />
+                </div>
+              )}
+              <div>
+                <label className="label">Ориент. цена</label>
+                <input type="number" className="input" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" />
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} className="btn-ghost">Отмена</button>
           <button onClick={submit} disabled={!fullName || !phone} className="btn-primary">

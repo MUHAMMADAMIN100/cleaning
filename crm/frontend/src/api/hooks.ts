@@ -32,6 +32,17 @@ export function prefetch(url: string) {
     .catch(() => {});
 }
 
+/**
+ * Точечно обновить закэшированные данные другого раздела (без его монтирования).
+ * Используется, например, чтобы новая заявка мгновенно появилась в воронке
+ * при добавлении клиента из другого раздела. Если кэша ещё нет — раздел
+ * подтянет свежие данные сам при заходе.
+ */
+export function mutateCache<T>(url: string, updater: (prev: T) => T) {
+  if (!cache.has(url)) return;
+  cache.set(url, updater(cache.get(url) as T));
+}
+
 type Updater<T> = T | null | ((prev: T | null) => T | null);
 
 /**
