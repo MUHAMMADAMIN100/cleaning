@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   DragDropContext,
   Droppable,
@@ -27,6 +27,9 @@ export function Funnel() {
     { pollMs: 10000 },
   );
   const [openOrder, setOpenOrder] = useState<Order | null>(null);
+  // true во время и сразу после перетаскивания — чтобы «клик», который
+  // браузер шлёт после отпускания карточки, не открывал модалку (двойное срабатывание)
+  const draggingRef = useRef(false);
 
   // Оптимистичное перемещение карточки между этапами (до ответа сервера)
   const applyPatch = (orderId: string, patch: Partial<Order>) => {
@@ -51,8 +54,17 @@ export function Funnel() {
     });
   };
 
+  const onDragStart = () => {
+    draggingRef.current = true;
+  };
+
   // Перетаскивание карточки в другую колонку = смена этапа
   const onDragEnd = async (result: DropResult) => {
+    // сбрасываем флаг на следующий тик: клик после отпускания приходит
+    // раньше таймера и будет подавлен, а обычный клик не тронут
+    setTimeout(() => {
+      draggingRef.current = false;
+    }, 0);
     const { source, destination, draggableId } = result;
     if (!destination || source.droppableId === destination.droppableId) return;
 
@@ -89,7 +101,7 @@ export function Funnel() {
         subtitle="Перетаскивайте карточки между этапами или нажмите для деталей"
       />
 
-      <DragDropContext onDragEnd={onDragEnd}>
+      <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
         <div className="flex gap-4 overflow-x-auto pb-4">
           {data.map((col) => (
             <div key={col.stage} className="flex w-72 shrink-0 flex-col">
@@ -116,7 +128,11 @@ export function Funnel() {
                             ref={p.innerRef}
                             {...p.draggableProps}
                             {...p.dragHandleProps}
-                            onClick={() => setOpenOrder(o)}
+                            onClick={() => {
+                              // это был драг, а не клик — модалку не открываем
+                              if (draggingRef.current) return;
+                              setOpenOrder(o);
+                            }}
                             className={`card cursor-pointer p-3.5 text-left transition-shadow hover:shadow-lg ${
                               snap.isDragging ? 'shadow-xl ring-2 ring-navy-300' : ''
                             }`}
