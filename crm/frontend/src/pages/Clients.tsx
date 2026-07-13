@@ -17,6 +17,7 @@ import {
   formatDate,
 } from '../lib/labels';
 import { tempId, nowISO } from '../lib/util';
+import { userSeesAll } from '../types';
 import type {
   BoardColumn,
   CleaningType,
@@ -199,7 +200,7 @@ export function Clients() {
                   <th className="px-4 py-3 font-semibold">Телефон</th>
                   <th className="px-4 py-3 font-semibold">Источник</th>
                   <th className="px-4 py-3 font-semibold">Теги</th>
-                  {user?.role === 'DIRECTOR' && (
+                  {userSeesAll(user) && (
                     <th className="px-4 py-3 font-semibold">Менеджер</th>
                   )}
                   <th className="px-4 py-3 font-semibold">Заказов</th>
@@ -229,7 +230,7 @@ export function Clients() {
                         ))}
                       </div>
                     </td>
-                    {user?.role === 'DIRECTOR' && (
+                    {userSeesAll(user) && (
                       <td className="px-4 py-3 text-navy-600">
                         {c.manager?.fullName ?? '—'}
                       </td>
@@ -301,7 +302,7 @@ export function Clients() {
         <AddClientModal
           onClose={() => setShowAdd(false)}
           onCreate={createClient}
-          isDirector={user?.role === 'DIRECTOR'}
+          isDirector={userSeesAll(user)}
         />
       )}
     </div>

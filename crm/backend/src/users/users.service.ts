@@ -7,7 +7,10 @@ import {
 import { FunnelStage, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
-import { AuthUser } from '../common/decorators/current-user.decorator';
+import {
+  AuthUser,
+  seesAll,
+} from '../common/decorators/current-user.decorator';
 import { CreateUserDto } from './dto/create-user.dto';
 
 const SAFE_SELECT = {
@@ -19,6 +22,7 @@ const SAFE_SELECT = {
   position: true,
   duties: true,
   mainTask: true,
+  canManageOps: true,
   isActive: true,
   createdAt: true,
 };
@@ -42,7 +46,19 @@ export class UsersService {
     });
   }
 
-  async create(dto: CreateUserDto) {
+  /** Сотрудники, которым можно ставить задачи. Доступ: директор или ops-менеджер. */
+  assignable(user: AuthUser) {
+    if (!seesAll(user)) {
+      throw new ForbiddenException('Нет доступа');
+    }
+    return this.prisma.user.findMany({
+      where: { isActive: true },
+      select: { id: true, fullName: true, position: true, role: true },
+      orderBy: { fullName: 'asc' },
+    });
+  }
+
+  async create(dto: CreateUserDto & { canManageOps?: boolean }) {
     const login = dto.login.trim().toLowerCase();
     const exists = await this.prisma.user.findUnique({ where: { login } });
     if (exists) throw new BadRequestException('Логин уже занят');
@@ -55,6 +71,7 @@ export class UsersService {
         fullName: dto.fullName,
         role: dto.role ?? Role.MANAGER,
         phone: dto.phone,
+        canManageOps: dto.canManageOps ?? false,
       },
       select: SAFE_SELECT,
     });
@@ -62,7 +79,7 @@ export class UsersService {
 
   /** Карточка сотрудника + статистика. Доступ: руководитель или сам сотрудник. */
   async getOne(requester: AuthUser, id: string) {
-    if (requester.role !== Role.DIRECTOR && requester.id !== id) {
+    if (!seesAll(requester) && requester.id !== id) {
       throw new ForbiddenException('Нет доступа к этому профилю');
     }
     const user = await this.prisma.user.findUnique({
@@ -107,7 +124,7 @@ export class UsersService {
     id: string,
     type: string,
   ): Promise<{ id: string; primary: string; secondary: string }[]> {
-    if (requester.role !== Role.DIRECTOR && requester.id !== id) {
+    if (!seesAll(requester) && requester.id !== id) {
       throw new ForbiddenException('Нет доступа');
     }
     const activeStages: FunnelStage[] = [
@@ -180,6 +197,8 @@ export class UsersService {
       duties?: string;
       mainTask?: string;
       role?: Role;
+      canManageOps?: boolean;
+      acceptsLeads?: boolean;
       isActive?: boolean;
       password?: string;
     },
@@ -193,6 +212,8 @@ export class UsersService {
     if (dto.position !== undefined) data.position = dto.position || null;
     if (dto.duties !== undefined) data.duties = dto.duties || null;
     if (dto.mainTask !== undefined) data.mainTask = dto.mainTask || null;
+    if (dto.canManageOps !== undefined) data.canManageOps = dto.canManageOps;
+    if (dto.acceptsLeads !== undefined) data.acceptsLeads = dto.acceptsLeads;
     if (dto.role !== undefined) data.role = dto.role;
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
     if (dto.login) {

@@ -12,7 +12,10 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { AuthUser } from '../common/decorators/current-user.decorator';
+import {
+  AuthUser,
+  seesAll,
+} from '../common/decorators/current-user.decorator';
 import {
   AssignCleanersDto,
   ChangeStageDto,
@@ -49,7 +52,7 @@ export class OrdersService {
   ) {}
 
   private scopeWhere(user: AuthUser): Prisma.OrderWhereInput {
-    return user.role === Role.DIRECTOR ? {} : { managerId: user.id };
+    return seesAll(user) ? {} : { managerId: user.id };
   }
 
   list(
@@ -58,7 +61,7 @@ export class OrdersService {
   ) {
     const where: Prisma.OrderWhereInput = this.scopeWhere(user);
     if (q.stage) where.stage = q.stage;
-    if (user.role === Role.DIRECTOR && q.managerId) where.managerId = q.managerId;
+    if (seesAll(user) && q.managerId) where.managerId = q.managerId;
     if (q.search) {
       const digits = q.search.replace(/\D/g, '');
       where.client = {
@@ -93,7 +96,7 @@ export class OrdersService {
       include: orderInclude,
     });
     if (!order) throw new NotFoundException('Заказ не найден');
-    if (user.role !== Role.DIRECTOR && order.managerId !== user.id) {
+    if (!seesAll(user) && order.managerId !== user.id) {
       throw new NotFoundException('Заказ не найден');
     }
     return order;
@@ -106,11 +109,10 @@ export class OrdersService {
       select: { id: true, managerId: true },
     });
     if (!client) throw new NotFoundException('Клиент не найден');
-    if (user.role !== Role.DIRECTOR && client.managerId !== user.id) {
+    if (!seesAll(user) && client.managerId !== user.id) {
       throw new NotFoundException('Клиент не найден');
     }
-    const managerId =
-      user.role === Role.DIRECTOR ? dto.managerId ?? null : user.id;
+    const managerId = seesAll(user) ? dto.managerId ?? null : user.id;
     const estimatedPrice = dto.estimatedPrice ?? 0;
     const order = await this.prisma.order.create({
       data: {
@@ -158,7 +160,7 @@ export class OrdersService {
     if ((data as any).cleaningType === 'FURNITURE') (data as any).dirtLevel = null;
     if (dto.inspectionDate) (data as any).inspectionDate = new Date(dto.inspectionDate);
     if (dto.scheduledDate) (data as any).scheduledDate = new Date(dto.scheduledDate);
-    if (dto.managerId && user.role === Role.DIRECTOR)
+    if (dto.managerId && seesAll(user))
       (data as any).managerId = dto.managerId;
 
     // пересчёт «крупности» по актуальной цене

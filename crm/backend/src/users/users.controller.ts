@@ -29,6 +29,12 @@ export class UsersController {
     return this.service.findManagers();
   }
 
+  // сотрудники, которым можно ставить задачи (директор или ops-менеджер)
+  @Get('assignable')
+  assignable(@CurrentUser() user: AuthUser) {
+    return this.service.assignable(user);
+  }
+
   @Roles(Role.DIRECTOR)
   @Get()
   findAll() {
@@ -60,6 +66,8 @@ export class UsersController {
       duties?: string;
       mainTask?: string;
       role?: Role;
+      canManageOps?: boolean;
+      acceptsLeads?: boolean;
       isActive?: boolean;
       password?: string;
     },

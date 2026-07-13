@@ -28,6 +28,7 @@ interface NavItem {
   label: string;
   icon: typeof LayoutDashboard;
   roles?: Role[]; // если не указано — доступно всем
+  finance?: boolean; // финансовый раздел — скрыт от ops-менеджеров
 }
 
 const NAV: NavItem[] = [
@@ -37,8 +38,8 @@ const NAV: NavItem[] = [
   { to: '/tasks', label: 'Задачи', icon: CheckSquare },
   { to: '/schedule', label: 'Расписание', icon: CalendarDays },
   { to: '/team', label: 'Команда', icon: UsersRound },
-  { to: '/shifts', label: 'Смены и выплаты', icon: Wallet },
-  { to: '/reports', label: 'Отчёты', icon: FileText },
+  { to: '/shifts', label: 'Смены и выплаты', icon: Wallet, finance: true },
+  { to: '/reports', label: 'Отчёты', icon: FileText, finance: true },
   { to: '/analytics', label: 'Аналитика', icon: BarChart3 },
   { to: '/tariffs', label: 'Тарифы', icon: Tags, roles: ['DIRECTOR'] },
   { to: '/users', label: 'Сотрудники', icon: UserCog, roles: ['DIRECTOR'] },
@@ -61,9 +62,13 @@ export function Layout() {
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
 
-  const items = NAV.filter(
-    (i) => !i.roles || (user && i.roles.includes(user.role)),
-  );
+  // ops-менеджер (canManageOps) видит всё как директор, но БЕЗ финансовых разделов
+  const isOps = !!user?.canManageOps && user.role !== 'DIRECTOR';
+  const items = NAV.filter((i) => {
+    if (i.roles && !(user && i.roles.includes(user.role))) return false;
+    if (i.finance && isOps) return false;
+    return true;
+  });
 
   // Прогрев кэша разделов после входа — переходы будут мгновенными.
   // Тяжёлую аналитику (/analytics/full) не греем в общем всплеске —

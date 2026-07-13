@@ -1,7 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ClientTag, LeadSource, Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuthUser } from '../common/decorators/current-user.decorator';
+import {
+  AuthUser,
+  seesAll,
+} from '../common/decorators/current-user.decorator';
 import { CreateClientDto, UpdateClientDto } from './dto/client.dto';
 
 /** Нормализуем телефон до цифр (для дедупликации) */
@@ -25,7 +28,7 @@ export class ClientsService {
     },
   ) {
     const where: Prisma.ClientWhereInput = {};
-    if (user.role !== Role.DIRECTOR) where.managerId = user.id;
+    if (!seesAll(user)) where.managerId = user.id;
     else if (q.managerId) where.managerId = q.managerId;
 
     if (q.tag) where.tags = { has: q.tag };
@@ -67,7 +70,7 @@ export class ClientsService {
       },
     });
     if (!client) throw new NotFoundException('Клиент не найден');
-    if (user.role !== Role.DIRECTOR && client.managerId !== user.id) {
+    if (!seesAll(user) && client.managerId !== user.id) {
       throw new NotFoundException('Клиент не найден');
     }
     return client;
@@ -111,8 +114,7 @@ export class ClientsService {
   }
 
   async create(user: AuthUser, dto: CreateClientDto) {
-    const managerId =
-      user.role === Role.DIRECTOR ? dto.managerId ?? null : user.id;
+    const managerId = seesAll(user) ? dto.managerId ?? null : user.id;
     const res = await this.findOrCreateByPhone({
       ...dto,
       managerId: managerId ?? undefined,
@@ -124,8 +126,8 @@ export class ClientsService {
   async update(user: AuthUser, id: string, dto: UpdateClientDto) {
     await this.getOne(user, id); // проверка доступа
     const data: Prisma.ClientUpdateInput = { ...dto } as any;
-    // переназначать менеджера может только руководитель (mass-assignment)
-    if (user.role !== Role.DIRECTOR) delete (data as any).managerId;
+    // переназначать менеджера может только тот, кто видит всю компанию
+    if (!seesAll(user)) delete (data as any).managerId;
     if (dto.phone) (data as any).phone = normalizePhone(dto.phone);
     return this.prisma.client.update({ where: { id }, data });
   }
@@ -145,8 +147,9 @@ export class ClientsService {
 
   /** Экспорт в CSV */
   async exportCsv(user: AuthUser): Promise<string> {
-    const where: Prisma.ClientWhereInput =
-      user.role === Role.DIRECTOR ? {} : { managerId: user.id };
+    const where: Prisma.ClientWhereInput = seesAll(user)
+      ? {}
+      : { managerId: user.id };
     const clients = await this.prisma.client.findMany({
       where,
       include: {

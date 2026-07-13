@@ -3,9 +3,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuthUser } from '../common/decorators/current-user.decorator';
+import {
+  AuthUser,
+  seesAll,
+} from '../common/decorators/current-user.decorator';
 
 const brigadeInclude = {
   leader: { select: { id: true, fullName: true } },
@@ -51,8 +53,7 @@ export class CleanersService {
     if (!data.fullName?.trim()) {
       throw new BadRequestException('Укажите имя клинера');
     }
-    const managerId =
-      user.role === Role.DIRECTOR ? data.managerId ?? user.id : user.id;
+    const managerId = seesAll(user) ? data.managerId ?? user.id : user.id;
     const rate = Math.round(Number(data.rate));
     return this.prisma.cleaner.create({
       data: {
@@ -199,7 +200,7 @@ export class CleanersService {
       stage: { in: ['CONFIRMED', 'IN_PROGRESS'] },
       scheduledDate: { gte: start, lte: end },
     };
-    if (user.role !== Role.DIRECTOR) where.managerId = user.id;
+    if (!seesAll(user)) where.managerId = user.id;
 
     return this.prisma.order.findMany({
       where,

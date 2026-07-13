@@ -21,7 +21,7 @@ const COLORS = ['#0063a8', '#0078c9', '#2a93da', '#5fb1e8', '#95cdf0'];
 
 export function Analytics() {
   const { user } = useAuth();
-  const isDirector = user?.role === 'DIRECTOR';
+  const seesAll = user?.role === 'DIRECTOR' || !!user?.canManageOps;
   const { data, loading } = useFetch<AnalyticsData>('/analytics/full');
 
   if (loading || !data) return <Spinner />;
@@ -30,11 +30,11 @@ export function Analytics() {
     <div>
       <PageHeader
         title="Аналитика и отчёты"
-        subtitle={isDirector ? 'Полная аналитика компании' : 'Аналитика по вашим заказам'}
+        subtitle={seesAll ? 'Аналитика компании' : 'Аналитика по вашим заказам'}
       />
 
-      {/* Доходы по периодам — только руководителю */}
-      {isDirector && data.revenue && (
+      {/* Доходы по периодам — приходят только руководителю (финансы) */}
+      {data.revenue && (
         <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {[
             ['За день', data.revenue.day],
@@ -78,8 +78,8 @@ export function Analytics() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* Доход по дням */}
-        {isDirector && data.revenueSeries && (
+        {/* Доход по дням — финансы, только руководителю */}
+        {data.revenueSeries && (
           <div className="card p-5 lg:col-span-2">
             <h3 className="mb-4 font-bold text-navy-900">Доход за 14 дней</h3>
             <ResponsiveContainer width="100%" height={260}>
@@ -132,8 +132,8 @@ export function Analytics() {
           </ResponsiveContainer>
         </div>
 
-        {/* Загрузка менеджеров — только руководителю */}
-        {isDirector && data.managerWorkload && (
+        {/* Загруженность менеджеров — руководителю и ops-менеджеру */}
+        {data.managerWorkload && (
           <div className="card p-5 lg:col-span-2">
             <h3 className="mb-4 font-bold text-navy-900">Загруженность менеджеров</h3>
             <ResponsiveContainer width="100%" height={260}>

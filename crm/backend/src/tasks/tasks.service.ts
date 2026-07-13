@@ -2,13 +2,15 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import {
   NotificationType,
   Prisma,
-  Role,
   TaskPriority,
   TaskStatus,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { AuthUser } from '../common/decorators/current-user.decorator';
+import {
+  AuthUser,
+  seesAll,
+} from '../common/decorators/current-user.decorator';
 
 const taskInclude = {
   assignee: { select: { id: true, fullName: true } },
@@ -22,10 +24,15 @@ export class TasksService {
     private notifications: NotificationsService,
   ) {}
 
-  /** Руководитель видит все задачи; менеджер — только свои (назначенные ему) */
+  /**
+   * Директор и ops-менеджер видят все задачи; обычный менеджер — только свои.
+   * ops-менеджер видит и задачи, которые он поставил (creatorId), и все
+   * (для контроля выполнения) — поэтому seesAll даёт полный список.
+   */
   list(user: AuthUser) {
-    const where: Prisma.TaskWhereInput =
-      user.role === Role.DIRECTOR ? {} : { assigneeId: user.id };
+    const where: Prisma.TaskWhereInput = seesAll(user)
+      ? {}
+      : { assigneeId: user.id };
     return this.prisma.task.findMany({
       where,
       include: taskInclude,
@@ -33,7 +40,7 @@ export class TasksService {
     });
   }
 
-  /** Создание задачи руководителем + уведомление менеджеру */
+  /** Постановка задачи (директор или ops-менеджер) + уведомление исполнителю */
   async create(
     user: AuthUser,
     dto: {
@@ -44,6 +51,9 @@ export class TasksService {
       deadline?: string;
     },
   ) {
+    if (!seesAll(user)) {
+      throw new ForbiddenException('Нет прав ставить задачи');
+    }
     const task = await this.prisma.task.create({
       data: {
         title: dto.title,
@@ -67,24 +77,26 @@ export class TasksService {
     return task;
   }
 
-  /** Менеджер меняет статус своей задачи; руководитель — любой */
+  /** Директор/ops-менеджер меняет статус любой задачи; менеджер — только своей */
   async updateStatus(user: AuthUser, id: string, status: TaskStatus) {
-    const where: Prisma.TaskWhereUniqueInput = { id };
-    if (user.role !== Role.DIRECTOR) {
-      // менеджер может менять только свою задачу
+    if (!seesAll(user)) {
       const task = await this.prisma.task.findUnique({ where: { id } });
       if (!task || task.assigneeId !== user.id) {
         throw new ForbiddenException('Нет доступа к этой задаче');
       }
     }
     return this.prisma.task.update({
-      where,
+      where: { id },
       data: { status },
       include: taskInclude,
     });
   }
 
-  remove(id: string) {
+  /** Удаление задачи (директор или ops-менеджер) */
+  async remove(user: AuthUser, id: string) {
+    if (!seesAll(user)) {
+      throw new ForbiddenException('Нет прав удалять задачи');
+    }
     return this.prisma.task.delete({ where: { id } });
   }
 }

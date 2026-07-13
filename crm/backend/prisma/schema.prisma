@@ -114,6 +114,7 @@ model User {
   duties       String? // должностные обязанности (список, по строке на пункт)
   mainTask     String? // основная задача сотрудника
   acceptsLeads Boolean  @default(true) // участвует в авто-распределении заявок с сайта
+  canManageOps Boolean  @default(false) // расширенный доступ: как директор, но без финансов
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

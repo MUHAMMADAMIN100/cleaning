@@ -43,6 +43,15 @@ function RoleOnly({
   return children;
 }
 
+/** Финансовые разделы — скрыты от ops-менеджеров (директор и обычные менеджеры видят) */
+function NoOpsFinance({ children }: { children: JSX.Element }) {
+  const { user } = useAuth();
+  if (user && user.canManageOps && user.role !== 'DIRECTOR') {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+}
+
 export default function App() {
   const { user, loading } = useAuth();
 
@@ -76,11 +85,11 @@ export default function App() {
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/schedule" element={<Schedule />} />
           <Route path="/team" element={<Team />} />
-          <Route path="/shifts" element={<Shifts />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/reports/new" element={<ReportEdit />} />
-          <Route path="/reports/:id" element={<ReportView />} />
-          <Route path="/reports/:id/edit" element={<ReportEdit />} />
+          <Route path="/shifts" element={<NoOpsFinance><Shifts /></NoOpsFinance>} />
+          <Route path="/reports" element={<NoOpsFinance><Reports /></NoOpsFinance>} />
+          <Route path="/reports/new" element={<NoOpsFinance><ReportEdit /></NoOpsFinance>} />
+          <Route path="/reports/:id" element={<NoOpsFinance><ReportView /></NoOpsFinance>} />
+          <Route path="/reports/:id/edit" element={<NoOpsFinance><ReportEdit /></NoOpsFinance>} />
           <Route path="/analytics" element={<Analytics />} />
           <Route
             path="/tariffs"

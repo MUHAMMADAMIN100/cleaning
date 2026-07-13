@@ -6,6 +6,13 @@ export interface AuthUser {
   login: string;
   role: Role;
   fullName: string;
+  /** расширенный доступ: видит данные как директор, но без финансов */
+  canManageOps: boolean;
+}
+
+/** Видит ли пользователь данные всей компании (директор или ops-менеджер) */
+export function seesAll(user: AuthUser): boolean {
+  return user.role === Role.DIRECTOR || user.canManageOps === true;
 }
 
 /** Достаёт текущего пользователя (из JWT) в параметр метода */

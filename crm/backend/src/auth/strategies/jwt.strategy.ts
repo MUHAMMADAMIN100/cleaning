@@ -37,6 +37,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       login: user.login,
       role: user.role,
       fullName: user.fullName,
+      canManageOps: user.canManageOps,
     };
   }
 }

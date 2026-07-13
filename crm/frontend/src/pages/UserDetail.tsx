@@ -37,6 +37,7 @@ interface UserDetailData {
   position?: string | null;
   duties?: string | null;
   mainTask?: string | null;
+  canManageOps?: boolean;
   isActive: boolean;
   createdAt: string;
   stats: {
@@ -306,6 +307,7 @@ function EditUserModal({
   const [duties, setDuties] = useState(user.duties ?? '');
   const [mainTask, setMainTask] = useState(user.mainTask ?? '');
   const [role, setRole] = useState<Role>(user.role);
+  const [canManageOps, setCanManageOps] = useState(!!user.canManageOps);
   const [isActive, setIsActive] = useState(user.isActive);
   const [password, setPassword] = useState('');
   const [saving, setSaving] = useState(false);
@@ -321,6 +323,7 @@ function EditUserModal({
         duties,
         mainTask,
         role,
+        canManageOps,
         isActive,
         ...(password ? { password } : {}),
       });
@@ -395,6 +398,27 @@ function EditUserModal({
             </select>
           </div>
         </div>
+
+        {/* Расширенный доступ — только для менеджеров (директор и так видит всё) */}
+        {role === 'MANAGER' && (
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-navy-100 bg-navy-50/50 px-3 py-2.5">
+            <input
+              type="checkbox"
+              checked={canManageOps}
+              onChange={(e) => setCanManageOps(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-navy-500"
+            />
+            <span className="text-sm text-navy-800">
+              <span className="font-medium">Расширенный доступ (без финансов)</span>
+              <span className="mt-0.5 block text-xs text-navy-500">
+                Видит клиентов, заказы, команду и аналитику всей компании, ставит
+                задачи любому сотруднику. Без разделов «Смены и выплаты», «Отчёты»,
+                «Тарифы» и без данных о доходах.
+              </span>
+            </span>
+          </label>
+        )}
+
         <div>
           <label className="label">Новый пароль (необязательно)</label>
           <PasswordInput

@@ -66,8 +66,8 @@ export function Dashboard() {
         ))}
       </div>
 
-      {/* Доход — только руководителю */}
-      {user?.role === 'DIRECTOR' && data.revenueMonth !== undefined && (
+      {/* Доход — приходит только руководителю (финансы) */}
+      {data.revenueMonth !== undefined && (
         <div className="mt-4 card flex items-center justify-between border-0 bg-navy-gradient p-6 text-white">
           <div className="flex items-center gap-4">
             <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/15">

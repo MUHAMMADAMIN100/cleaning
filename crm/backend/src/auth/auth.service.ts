@@ -40,6 +40,7 @@ export class AuthService {
         login: user.login,
         fullName: user.fullName,
         role: user.role,
+        canManageOps: user.canManageOps,
       },
     };
   }

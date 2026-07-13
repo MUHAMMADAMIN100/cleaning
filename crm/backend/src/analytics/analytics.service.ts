@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { FunnelStage, Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuthUser } from '../common/decorators/current-user.decorator';
+import {
+  AuthUser,
+  seesAll,
+} from '../common/decorators/current-user.decorator';
 
 const TYPE_LABEL: Record<string, string> = {
   MAINTENANCE: 'Поддерживающая (архив)',
@@ -24,8 +27,9 @@ function priceOf(o: { finalPrice: number | null; estimatedPrice: number }) {
 export class AnalyticsService {
   constructor(private prisma: PrismaService) {}
 
+  // директор и ops-менеджер видят данные всей компании; менеджер — свои
   private scope(user: AuthUser): Prisma.OrderWhereInput {
-    return user.role === Role.DIRECTOR ? {} : { managerId: user.id };
+    return seesAll(user) ? {} : { managerId: user.id };
   }
 
   /** Сводка для дашборда */
@@ -48,14 +52,13 @@ export class AnalyticsService {
           },
         }),
         this.prisma.client.count({
-          where:
-            user.role === Role.DIRECTOR ? {} : { managerId: user.id },
+          where: seesAll(user) ? {} : { managerId: user.id },
         }),
       ]);
 
     const result: any = { newLeads, inProgress, doneThisMonth, totalClients };
 
-    // финансы — только руководителю
+    // выручка (финансы) — только руководителю
     if (user.role === Role.DIRECTOR) {
       result.revenueMonth = await this.revenueInRange(scope, monthStart, now);
     }
@@ -129,20 +132,21 @@ export class AnalyticsService {
 
     const result: any = { byType, sources, conversion };
 
+    // Выручка (финансы) — только руководителю
     if (user.role === Role.DIRECTOR) {
-      // Все финансовые агрегаты параллельно
-      const [day, week, month, quarter, revenueSeries, managerWorkload] =
-        await Promise.all([
-          this.revenueInRange(scope, startOfDay, now),
-          this.revenueInRange(scope, weekStart, now),
-          this.revenueInRange(scope, monthStart, now),
-          this.revenueInRange(scope, quarterStart, now),
-          this.revenueSeries(scope, 14),
-          this.managerWorkload(),
-        ]);
+      const [day, week, month, quarter, revenueSeries] = await Promise.all([
+        this.revenueInRange(scope, startOfDay, now),
+        this.revenueInRange(scope, weekStart, now),
+        this.revenueInRange(scope, monthStart, now),
+        this.revenueInRange(scope, quarterStart, now),
+        this.revenueSeries(scope, 14),
+      ]);
       result.revenue = { day, week, month, quarter };
       result.revenueSeries = revenueSeries;
-      result.managerWorkload = managerWorkload;
+    }
+    // Загруженность менеджеров (не финансы) — директору и ops-менеджеру
+    if (seesAll(user)) {
+      result.managerWorkload = await this.managerWorkload();
     }
 
     return result;

@@ -27,6 +27,13 @@ export interface AuthUser {
   login: string;
   fullName: string;
   role: Role;
+  /** расширенный доступ: видит всё как директор, но без финансов */
+  canManageOps?: boolean;
+}
+
+/** Видит ли пользователь данные всей компании (директор или ops-менеджер) */
+export function userSeesAll(u?: AuthUser | null): boolean {
+  return !!u && (u.role === 'DIRECTOR' || u.canManageOps === true);
 }
 
 export interface Manager {

@@ -13,14 +13,23 @@ import {
   formatDate,
 } from '../lib/labels';
 import { tempId, nowISO, withRetry } from '../lib/util';
-import type { Manager, Task, TaskPriority, TaskStatus } from '../types';
+import { userSeesAll } from '../types';
+import type { Task, TaskPriority, TaskStatus } from '../types';
 
 const STATUSES: TaskStatus[] = ['OPEN', 'IN_PROGRESS', 'DONE'];
+
+/** Кому можно ставить задачи (все активные сотрудники) */
+interface Assignable {
+  id: string;
+  fullName: string;
+  position?: string | null;
+}
 
 export function Tasks() {
   const { user } = useAuth();
   const toast = useToast();
-  const isDirector = user?.role === 'DIRECTOR';
+  // задачи ставит директор ИЛИ ops-менеджер (расширенный доступ)
+  const canAssign = userSeesAll(user);
   const { data, loading, reload, setData } = useFetch<Task[]>('/tasks', {
     pollMs: 20000,
   });
@@ -89,9 +98,9 @@ export function Tasks() {
     <div>
       <PageHeader
         title="Задачи"
-        subtitle={isDirector ? 'Постановка задач менеджерам' : 'Задачи от руководителя'}
+        subtitle={canAssign ? 'Постановка задач сотрудникам' : 'Задачи от руководителя'}
         action={
-          isDirector && (
+          canAssign && (
             <button onClick={() => setShowAdd(true)} className="btn-primary">
               <Plus className="h-4 w-4" />
               Новая задача
@@ -134,7 +143,7 @@ export function Tasks() {
                 ))}
               </select>
 
-              {isDirector && (
+              {canAssign && (
                 <button
                   onClick={() => remove(t.id)}
                   className="rounded-lg p-2 text-navy-400 hover:bg-red-50 hover:text-red-600"
@@ -173,7 +182,8 @@ function AddTaskModal({
     assigneeName: string,
   ) => void;
 }) {
-  const { data: managers } = useFetch<Manager[]>('/users/managers');
+  // все активные сотрудники — задачу можно поставить любому
+  const { data: people } = useFetch<Assignable[]>('/users/assignable');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
@@ -182,7 +192,7 @@ function AddTaskModal({
 
   const submit = () => {
     const assigneeName =
-      (managers ?? []).find((m) => m.id === assigneeId)?.fullName ?? '';
+      (people ?? []).find((m) => m.id === assigneeId)?.fullName ?? '';
     onCreate(
       {
         title,
@@ -210,9 +220,12 @@ function AddTaskModal({
         <div>
           <label className="label">Исполнитель *</label>
           <select className="input" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
-            <option value="">— выберите менеджера —</option>
-            {(managers ?? []).map((m) => (
-              <option key={m.id} value={m.id}>{m.fullName}</option>
+            <option value="">— выберите сотрудника —</option>
+            {(people ?? []).map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.fullName}
+                {m.position ? ` · ${m.position}` : ''}
+              </option>
             ))}
           </select>
         </div>
