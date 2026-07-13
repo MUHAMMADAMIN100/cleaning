@@ -90,38 +90,36 @@ export class AnalyticsService {
       1,
     );
 
-    // Заказы по типам уборки
-    const byTypeRaw = await this.prisma.order.groupBy({
-      by: ['cleaningType'],
-      where: scope,
-      _count: { _all: true },
-    });
+    // Независимые агрегаты — одним пакетом (Promise.all вместо цепочки await)
+    const [byTypeRaw, bySourceRaw, totalOrders, paidOrders, rejectedOrders] =
+      await Promise.all([
+        this.prisma.order.groupBy({
+          by: ['cleaningType'],
+          where: scope,
+          _count: { _all: true },
+        }),
+        this.prisma.order.groupBy({
+          by: ['source'],
+          where: scope,
+          _count: { _all: true },
+        }),
+        this.prisma.order.count({ where: scope }),
+        this.prisma.order.count({ where: { ...scope, stage: FunnelStage.PAID } }),
+        this.prisma.order.count({
+          where: { ...scope, stage: FunnelStage.REJECTED },
+        }),
+      ]);
     const byType = byTypeRaw.map((r) => ({
       type: r.cleaningType,
       label: TYPE_LABEL[r.cleaningType],
       count: r._count._all,
     }));
-
-    // Источники заявок
-    const bySourceRaw = await this.prisma.order.groupBy({
-      by: ['source'],
-      where: scope,
-      _count: { _all: true },
-    });
     const sources = bySourceRaw.map((r) => ({
       source: r.source,
       label: SOURCE_LABEL[r.source],
       count: r._count._all,
     }));
 
-    // Конверсия заявок в оплаченные заказы
-    const totalOrders = await this.prisma.order.count({ where: scope });
-    const paidOrders = await this.prisma.order.count({
-      where: { ...scope, stage: FunnelStage.PAID },
-    });
-    const rejectedOrders = await this.prisma.order.count({
-      where: { ...scope, stage: FunnelStage.REJECTED },
-    });
     const conversion = {
       total: totalOrders,
       paid: paidOrders,
@@ -132,19 +130,19 @@ export class AnalyticsService {
     const result: any = { byType, sources, conversion };
 
     if (user.role === Role.DIRECTOR) {
-      // Доходы по периодам
-      result.revenue = {
-        day: await this.revenueInRange(scope, startOfDay, now),
-        week: await this.revenueInRange(scope, weekStart, now),
-        month: await this.revenueInRange(scope, monthStart, now),
-        quarter: await this.revenueInRange(scope, quarterStart, now),
-      };
-
-      // Доход по дням за 14 дней (для графика)
-      result.revenueSeries = await this.revenueSeries(scope, 14);
-
-      // Загруженность менеджеров (активные заказы)
-      result.managerWorkload = await this.managerWorkload();
+      // Все финансовые агрегаты параллельно
+      const [day, week, month, quarter, revenueSeries, managerWorkload] =
+        await Promise.all([
+          this.revenueInRange(scope, startOfDay, now),
+          this.revenueInRange(scope, weekStart, now),
+          this.revenueInRange(scope, monthStart, now),
+          this.revenueInRange(scope, quarterStart, now),
+          this.revenueSeries(scope, 14),
+          this.managerWorkload(),
+        ]);
+      result.revenue = { day, week, month, quarter };
+      result.revenueSeries = revenueSeries;
+      result.managerWorkload = managerWorkload;
     }
 
     return result;
@@ -178,10 +176,6 @@ export class AnalyticsService {
   }
 
   private async managerWorkload() {
-    const managers = await this.prisma.user.findMany({
-      where: { role: Role.MANAGER },
-      select: { id: true, fullName: true },
-    });
     const activeStages: FunnelStage[] = [
       FunnelStage.NEW,
       FunnelStage.PROCESSING,
@@ -191,16 +185,32 @@ export class AnalyticsService {
       FunnelStage.IN_PROGRESS,
       FunnelStage.DONE,
     ];
-    const result: { id: string; name: string; active: number; paid: number }[] = [];
-    for (const m of managers) {
-      const active = await this.prisma.order.count({
-        where: { managerId: m.id, stage: { in: activeStages } },
-      });
-      const paid = await this.prisma.order.count({
-        where: { managerId: m.id, stage: FunnelStage.PAID },
-      });
-      result.push({ id: m.id, name: m.fullName, active, paid });
-    }
-    return result;
+    // 3 запроса вместо 1+2N: список менеджеров + 2 групповых count
+    const [managers, activeGroups, paidGroups] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { role: Role.MANAGER },
+        select: { id: true, fullName: true },
+      }),
+      this.prisma.order.groupBy({
+        by: ['managerId'],
+        where: { stage: { in: activeStages }, managerId: { not: null } },
+        _count: { _all: true },
+      }),
+      this.prisma.order.groupBy({
+        by: ['managerId'],
+        where: { stage: FunnelStage.PAID, managerId: { not: null } },
+        _count: { _all: true },
+      }),
+    ]);
+    const activeBy = new Map(
+      activeGroups.map((g) => [g.managerId, g._count._all]),
+    );
+    const paidBy = new Map(paidGroups.map((g) => [g.managerId, g._count._all]));
+    return managers.map((m) => ({
+      id: m.id,
+      name: m.fullName,
+      active: activeBy.get(m.id) ?? 0,
+      paid: paidBy.get(m.id) ?? 0,
+    }));
   }
 }

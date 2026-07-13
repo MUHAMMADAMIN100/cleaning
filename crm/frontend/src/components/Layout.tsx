@@ -65,14 +65,15 @@ export function Layout() {
     (i) => !i.roles || (user && i.roles.includes(user.role)),
   );
 
-  // Прогрев кэша всех разделов после входа — переходы будут мгновенными
+  // Прогрев кэша разделов после входа — переходы будут мгновенными.
+  // Тяжёлую аналитику (/analytics/full) не греем в общем всплеске —
+  // подтянется при заходе на страницу.
   useEffect(() => {
     if (!user) return;
     const urls = [
       '/orders/board',
       '/clients?sort=recent',
       '/analytics/summary',
-      '/analytics/full',
       '/tasks',
       '/schedule',
       '/cleaners',

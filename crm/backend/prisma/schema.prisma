@@ -207,7 +207,7 @@ model Client {
   updatedAt     DateTime    @updatedAt
 
   @@index([managerId])
-  @@index([phone])
+  // @@index([phone]) убран: @unique на phone уже создаёт индекс
 }
 
 /// Заказ / обращение — движется по воронке. История заказов клиента.
@@ -252,6 +252,7 @@ model Order {
   @@index([managerId])
   @@index([stage])
   @@index([clientId])
+  @@index([stage, closedAt]) // выручка по периодам и подсчёт закрытых
 }
 
 /// Задача от руководителя менеджеру

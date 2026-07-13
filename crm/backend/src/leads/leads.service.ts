@@ -55,10 +55,16 @@ export class LeadsService {
 
     // 2. Rate-limit: не чаще раза в 20 сек с одного телефона
     const phoneKey = dto.contact.phone.replace(/\D/g, '');
-    const last = this.recent.get(phoneKey);
     const nowMs = Date.now();
+    const last = this.recent.get(phoneKey);
     if (last && nowMs - last < 20_000) {
       throw new BadRequestException('Слишком частые заявки, попробуйте позже');
+    }
+    // оппортунистическая чистка устаревших записей (карта не растёт бесконечно)
+    if (this.recent.size > 500) {
+      for (const [k, t] of this.recent) {
+        if (nowMs - t > 20_000) this.recent.delete(k);
+      }
     }
     this.recent.set(phoneKey, nowMs);
 
@@ -154,21 +160,25 @@ export class LeadsService {
 
   /** Менеджер отдела продаж с наименьшим числом активных заказов */
   private async pickManager(): Promise<string | null> {
-    const managers = await this.prisma.user.findMany({
-      where: { role: Role.MANAGER, isActive: true, acceptsLeads: true },
-      select: { id: true },
-    });
+    // 2 запроса вместо 1+N: менеджеры + групповой count активных заказов
+    const [managers, groups] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { role: Role.MANAGER, isActive: true, acceptsLeads: true },
+        select: { id: true },
+      }),
+      this.prisma.order.groupBy({
+        by: ['managerId'],
+        where: { stage: { notIn: ['PAID', 'REJECTED'] }, managerId: { not: null } },
+        _count: { _all: true },
+      }),
+    ]);
     if (managers.length === 0) return null;
 
+    const countBy = new Map(groups.map((g) => [g.managerId, g._count._all]));
     let best = managers[0].id;
     let bestCount = Infinity;
     for (const m of managers) {
-      const count = await this.prisma.order.count({
-        where: {
-          managerId: m.id,
-          stage: { notIn: ['PAID', 'REJECTED'] },
-        },
-      });
+      const count = countBy.get(m.id) ?? 0; // менеджера нет в группах = 0 заказов
       if (count < bestCount) {
         bestCount = count;
         best = m.id;

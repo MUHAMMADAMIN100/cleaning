@@ -98,6 +98,15 @@ export class OrdersService {
   }
 
   async create(user: AuthUser, dto: CreateOrderDto) {
+    // менеджер может создавать заказ только своему клиенту (IDOR)
+    const client = await this.prisma.client.findUnique({
+      where: { id: dto.clientId },
+      select: { id: true, managerId: true },
+    });
+    if (!client) throw new NotFoundException('Клиент не найден');
+    if (user.role !== Role.DIRECTOR && client.managerId !== user.id) {
+      throw new NotFoundException('Клиент не найден');
+    }
     const managerId =
       user.role === Role.DIRECTOR ? dto.managerId ?? null : user.id;
     const estimatedPrice = dto.estimatedPrice ?? 0;
@@ -173,6 +182,10 @@ export class OrdersService {
     if (dto.stage === FunnelStage.REJECTED) {
       (data as any).rejectionReason = dto.rejectionReason;
       (data as any).closedAt = new Date();
+    } else if (order.stage === FunnelStage.REJECTED) {
+      // возврат из «Отказа» на активный этап — чистим причину и дату закрытия
+      (data as any).rejectionReason = null;
+      (data as any).closedAt = null;
     }
     if (dto.stage === FunnelStage.PAID) (data as any).closedAt = new Date();
     if (dto.scheduledDate) (data as any).scheduledDate = new Date(dto.scheduledDate);

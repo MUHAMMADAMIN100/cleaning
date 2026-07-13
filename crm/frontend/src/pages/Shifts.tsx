@@ -27,6 +27,13 @@ function toISODate(d: Date): string {
   return new Date(d.getTime() - tz).toISOString().slice(0, 10);
 }
 
+/** «Сегодня» в часовом поясе Душанбе — совпадает с логикой бэкенда */
+function todayISO(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dushanbe' }).format(
+    new Date(),
+  );
+}
+
 function monthRange(base: Date): { from: string; to: string; label: string } {
   const from = new Date(base.getFullYear(), base.getMonth(), 1);
   const to = new Date(base.getFullYear(), base.getMonth() + 1, 0);
@@ -53,7 +60,7 @@ export function Shifts() {
 /** ── Блок 1: отметка смен за день ── */
 function DayMarking() {
   const toast = useToast();
-  const [date, setDate] = useState(() => toISODate(new Date()));
+  const [date, setDate] = useState(() => todayISO());
   const { data: brigades } = useFetch<Brigade[]>('/brigades');
   const { data: cleaners } = useFetch<Cleaner[]>('/cleaners');
   const {
@@ -395,7 +402,12 @@ function PayrollSection() {
                   >
                     {r.fines > 0 ? `− ${formatPrice(r.fines)}` : '—'}
                   </td>
-                  <td className="py-2.5 pr-3 text-right font-bold text-navy-900">
+                  <td
+                    className={`py-2.5 pr-3 text-right font-bold ${
+                      r.total < 0 ? 'text-red-600' : 'text-navy-900'
+                    }`}
+                    title={r.total < 0 ? 'Штрафы превысили начисления (долг)' : undefined}
+                  >
                     {formatPrice(r.total)}
                   </td>
                   <td className="py-2.5 text-right">
@@ -424,7 +436,11 @@ function PayrollSection() {
                       ? `− ${formatPrice(payroll.totals.fines)}`
                       : '—'}
                   </td>
-                  <td className="py-3 pr-3 text-right text-green-700">
+                  <td
+                    className={`py-3 pr-3 text-right ${
+                      payroll.totals.total < 0 ? 'text-red-600' : 'text-green-700'
+                    }`}
+                  >
                     {formatPrice(payroll.totals.total)}
                   </td>
                   <td />
@@ -508,7 +524,7 @@ function FineModal({
   const [cleanerId, setCleanerId] = useState(initialCleanerId ?? '');
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
-  const [date, setDate] = useState(() => toISODate(new Date()));
+  const [date, setDate] = useState(() => todayISO());
   const [saving, setSaving] = useState(false);
 
   const submit = async () => {

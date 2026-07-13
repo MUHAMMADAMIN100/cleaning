@@ -1,13 +1,28 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+import compression = require('compression');
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // За прокси Railway — чтобы Secure-cookie и protocol определялись верно
-  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.set('trust proxy', 1);
+  expressApp.disable('x-powered-by'); // не раскрываем стек
+
+  // Заголовки безопасности. API потребляется кросс-доменно (Vercel ↔ Railway),
+  // поэтому CORP=cross-origin (иначе браузер заблокирует ответы), а CSP не нужна
+  // (отдаём только JSON) — оставляем HSTS/nosniff/frameguard и пр.
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      contentSecurityPolicy: false,
+    }),
+  );
+  app.use(compression()); // сжатие ответов
 
   app.use(cookieParser());
   app.setGlobalPrefix('api');

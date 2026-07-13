@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 
 import { PrismaModule } from './prisma/prisma.module';
@@ -26,6 +27,9 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    // Глобальный rate-limit: 300 запросов за 60 сек с одного IP
+    // (CRM активно поллит; жёстче — точечно на /auth/login и /leads/intake)
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
     PrismaModule,
     NotificationsModule,
     AuthModule,
@@ -45,6 +49,8 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
   ],
   controllers: [AppController],
   providers: [
+    // Rate-limit применяется первым (до аутентификации)
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     // Глобальная JWT-защита: все роуты требуют авторизации, кроме @Public
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],

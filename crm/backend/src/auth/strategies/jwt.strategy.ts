@@ -4,6 +4,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Request } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
+import { JWT_SECRET } from '../jwt-secret';
 
 /** Достаём JWT сначала из httpOnly-cookie, затем из заголовка Authorization */
 function cookieExtractor(req: Request): string | null {
@@ -20,7 +21,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         ExtractJwt.fromAuthHeaderAsBearerToken(),
       ]),
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_SECRET || 'dev_secret',
+      secretOrKey: JWT_SECRET,
     });
   }
 

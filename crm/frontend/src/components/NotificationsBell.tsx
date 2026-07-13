@@ -25,7 +25,10 @@ export function NotificationsBell() {
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 30000); // опрос каждые 30 сек
+    // опрос каждые 30 сек, но не когда вкладка скрыта (экономим запросы)
+    const t = setInterval(() => {
+      if (!document.hidden) load();
+    }, 30000);
     return () => clearInterval(t);
   }, []);
 

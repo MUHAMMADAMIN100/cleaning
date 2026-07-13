@@ -121,6 +121,8 @@ export class ClientsService {
   async update(user: AuthUser, id: string, dto: UpdateClientDto) {
     await this.getOne(user, id); // проверка доступа
     const data: Prisma.ClientUpdateInput = { ...dto } as any;
+    // переназначать менеджера может только руководитель (mass-assignment)
+    if (user.role !== Role.DIRECTOR) delete (data as any).managerId;
     if (dto.phone) (data as any).phone = normalizePhone(dto.phone);
     return this.prisma.client.update({ where: { id }, data });
   }
@@ -150,8 +152,24 @@ export class ClientsService {
       },
       orderBy: { createdAt: 'desc' },
     });
-    const header =
-      'ФИО;Телефон;Источник;Теги;Менеджер;Заказов;Последний контакт';
+    // Экранирование поля CSV + защита от формула-инъекции (CWE-1236):
+    // ведущие = + - @ (и таб/CR) обезвреживаем апострофом, всё оборачиваем в кавычки.
+    const cell = (v: unknown): string => {
+      let s = String(v ?? '');
+      if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+    const header = [
+      'ФИО',
+      'Телефон',
+      'Источник',
+      'Теги',
+      'Менеджер',
+      'Заказов',
+      'Последний контакт',
+    ]
+      .map(cell)
+      .join(';');
     const rows = clients.map((c) =>
       [
         c.fullName,
@@ -161,7 +179,9 @@ export class ClientsService {
         c.manager?.fullName ?? '—',
         c._count.orders,
         c.lastContactAt.toISOString().slice(0, 10),
-      ].join(';'),
+      ]
+        .map(cell)
+        .join(';'),
     );
     return [header, ...rows].join('\n');
   }

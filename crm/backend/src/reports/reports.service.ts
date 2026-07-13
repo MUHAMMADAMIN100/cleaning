@@ -321,17 +321,10 @@ export class ReportsService {
       if (res.count === 0) {
         throw new BadRequestException('Отчёт уже принят');
       }
-      // upsert: принятая ведомость авторитетна — если смена на этот день уже
-      // была отмечена вручную, её ставка обновляется по ведомости (без дублей)
-      for (const row of shiftRows) {
-        await tx.shift.upsert({
-          where: {
-            cleanerId_date: { cleanerId: row.cleanerId, date: row.date },
-          },
-          create: row,
-          update: { rate: row.rate, note: row.note },
-        });
-      }
+      // Не перезаписываем уже существующие смены на эти даты (они могут
+      // относиться к другому объекту/ручной отметке) — только добавляем
+      // недостающие. Так принятие ведомости не искажает чужой учёт.
+      await tx.shift.createMany({ data: shiftRows, skipDuplicates: true });
       if (fineRows.length > 0) {
         await tx.fine.createMany({ data: fineRows });
       }

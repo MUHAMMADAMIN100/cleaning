@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, Role, ScheduleType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
@@ -50,7 +50,14 @@ export class ScheduleService {
     });
   }
 
-  remove(id: string) {
-    return this.prisma.scheduleEvent.delete({ where: { id } });
+  /** Удаление события. Менеджер — только своё; руководитель — любое. */
+  async remove(user: AuthUser, id: string) {
+    const where: Prisma.ScheduleEventWhereInput = { id };
+    if (user.role !== Role.DIRECTOR) where.managerId = user.id;
+    const res = await this.prisma.scheduleEvent.deleteMany({ where });
+    if (res.count === 0) {
+      throw new NotFoundException('Событие не найдено');
+    }
+    return { ok: true };
   }
 }

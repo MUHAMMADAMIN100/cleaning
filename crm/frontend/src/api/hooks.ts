@@ -101,10 +101,12 @@ export function useFetch<T>(url: string | null, opts: Options = {}) {
     load(false);
   }, [load]);
 
-  // фоновый поллинг (тихо)
+  // фоновый поллинг (тихо) — приостанавливается на скрытой вкладке
   useEffect(() => {
     if (!pollMs || !url) return;
-    const id = setInterval(() => load(true), pollMs);
+    const id = setInterval(() => {
+      if (!document.hidden) load(true);
+    }, pollMs);
     return () => clearInterval(id);
   }, [pollMs, url, load]);
 

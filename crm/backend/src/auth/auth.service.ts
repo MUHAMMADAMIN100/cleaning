@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
+import { JWT_SECRET } from './jwt-secret';
 
 @Injectable()
 export class AuthService {
@@ -27,7 +28,7 @@ export class AuthService {
     const token = await this.jwt.signAsync(
       { sub: user.id, role: user.role },
       {
-        secret: process.env.JWT_SECRET || 'dev_secret',
+        secret: JWT_SECRET,
         expiresIn: process.env.JWT_EXPIRES_IN || '7d',
       },
     );

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import {
   NotificationType,
   Prisma,
@@ -74,7 +74,7 @@ export class TasksService {
       // менеджер может менять только свою задачу
       const task = await this.prisma.task.findUnique({ where: { id } });
       if (!task || task.assigneeId !== user.id) {
-        return { ok: false };
+        throw new ForbiddenException('Нет доступа к этой задаче');
       }
     }
     return this.prisma.task.update({

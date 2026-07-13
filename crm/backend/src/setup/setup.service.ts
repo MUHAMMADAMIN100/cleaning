@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 
 /**
@@ -12,9 +13,11 @@ import { PrismaService } from '../prisma/prisma.service';
  * (кроме одноразового заполнения пустых полей должности/обязанностей).
  */
 
+// Пароли НЕ хранятся в коде. При первом создании сотрудника пароль берётся
+// из переменной окружения SEED_PW_<LOGIN> (напр. SEED_PW_ANISA), либо из
+// SEED_DEFAULT_PASSWORD, либо генерируется случайно и логируется один раз.
 const TEAM: {
   login: string;
-  password: string;
   fullName: string;
   role: Role;
   position: string;
@@ -25,7 +28,6 @@ const TEAM: {
 }[] = [
   {
     login: 'anisa',
-    password: 'anisa2026',
     fullName: 'Аниса Мукими',
     role: Role.DIRECTOR,
     acceptsLeads: false,
@@ -40,7 +42,6 @@ const TEAM: {
   },
   {
     login: 'munim',
-    password: 'munim2026',
     fullName: 'Муним Акназаров',
     role: Role.MANAGER,
     acceptsLeads: false,
@@ -60,7 +61,6 @@ const TEAM: {
   },
   {
     login: 'muslim',
-    password: 'muslim2026',
     fullName: 'Муслим Мукими',
     role: Role.MANAGER,
     acceptsLeads: true, // отдел продаж — заявки с сайта идут ему
@@ -78,7 +78,6 @@ const TEAM: {
   },
   {
     login: 'ubaydullo',
-    password: 'ubaydullo2026',
     fullName: 'Убайдулло',
     role: Role.MANAGER,
     acceptsLeads: false,
@@ -96,7 +95,6 @@ const TEAM: {
   },
   {
     login: 'fariza',
-    password: 'fariza2026',
     fullName: 'Фариза',
     role: Role.MANAGER,
     acceptsLeads: false,
@@ -190,6 +188,21 @@ export class SetupService implements OnApplicationBootstrap {
     }
   }
 
+  /**
+   * Пароль для первого создания сотрудника: из env SEED_PW_<LOGIN> или
+   * SEED_DEFAULT_PASSWORD, иначе — случайный (логируется один раз, чтобы
+   * оператор мог его забрать). В коде паролей нет.
+   */
+  private resolvePassword(login: string): { password: string; generated: boolean } {
+    const fromEnv =
+      process.env[`SEED_PW_${login.toUpperCase()}`] ||
+      process.env.SEED_DEFAULT_PASSWORD;
+    if (fromEnv && fromEnv.length >= 6) {
+      return { password: fromEnv, generated: false };
+    }
+    return { password: randomBytes(9).toString('base64url'), generated: true };
+  }
+
   private async ensureTeam() {
     for (const t of TEAM) {
       // ищем и по логину, и по ФИО — переименование логина не должно
@@ -198,10 +211,11 @@ export class SetupService implements OnApplicationBootstrap {
         where: { OR: [{ login: t.login }, { fullName: t.fullName }] },
       });
       if (!existing) {
+        const { password, generated } = this.resolvePassword(t.login);
         await this.prisma.user.create({
           data: {
             login: t.login,
-            passwordHash: await bcrypt.hash(t.password, 10),
+            passwordHash: await bcrypt.hash(password, 10),
             fullName: t.fullName,
             role: t.role,
             position: t.position,
@@ -211,6 +225,11 @@ export class SetupService implements OnApplicationBootstrap {
           },
         });
         this.logger.log(`Сотрудник создан: ${t.fullName} (@${t.login})`);
+        if (generated) {
+          this.logger.warn(
+            `Пароль для @${t.login} сгенерирован: ${password} — смените после первого входа (задайте SEED_PW_${t.login.toUpperCase()}, чтобы управлять паролем).`,
+          );
+        }
       } else if (!existing.position) {
         // одноразовое заполнение должности/обязанностей у уже созданных
         await this.prisma.user.update({

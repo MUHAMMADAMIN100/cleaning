@@ -7,6 +7,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Response } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { Public } from '../common/decorators/public.decorator';
@@ -31,6 +32,8 @@ const COOKIE_OPTS = {
 export class AuthController {
   constructor(private auth: AuthService) {}
 
+  // Защита от брутфорса: не более 8 попыток входа за минуту с одного IP
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
   @Public()
   @Post('login')
   async login(
