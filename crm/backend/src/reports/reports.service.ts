@@ -1,0 +1,353 @@
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { NotificationType, Prisma, ReportStatus, Role } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { AuthUser } from '../common/decorators/current-user.decorator';
+
+/** Целое неотрицательное число (сомони/дни) из произвольного ввода */
+const int = (v: unknown, def = 0) => {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n >= 0 ? n : def;
+};
+
+/** Строка из произвольного ввода (защита от не-строк в теле запроса) */
+const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+
+/** id-строка или null */
+const idOrNull = (v: unknown) => (typeof v === 'string' && v ? v : null);
+
+/** Максимум смен по одной строке ведомости (защита от опечаток/вставок) */
+const MAX_DAYS = 60;
+
+/** «YYYY-MM-DD» → полночь UTC; null при пустом/неверном значении */
+function dayUTC(s?: string | null): Date | null {
+  if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  return new Date(`${s}T00:00:00.000Z`);
+}
+
+/** Сегодня в часовом поясе Душанбе как «YYYY-MM-DD» */
+function todayDushanbe(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dushanbe' }).format(
+    new Date(),
+  );
+}
+
+export interface WorkerInput {
+  cleanerId?: string | null;
+  fullName: string;
+  role?: string;
+  days?: number;
+  rate: number;
+  fine?: number;
+  extra?: number;
+}
+
+export interface ExpenseInput {
+  title: string;
+  initiator?: string;
+  amount: number;
+  comment?: string;
+}
+
+export interface ReportInput {
+  orderId?: string | null;
+  clientName: string;
+  clientPhone?: string;
+  address?: string;
+  workDate?: string | null;
+  workEndDate?: string | null;
+  unitsLabel?: string;
+  extraServices?: string;
+  discount?: number;
+  totalPrice?: number;
+  arrivedBy?: string;
+  brigadierName?: string;
+  managerName?: string;
+  workers?: WorkerInput[];
+  expenses?: ExpenseInput[];
+}
+
+const reportInclude = {
+  manager: { select: { id: true, fullName: true } },
+  workers: { orderBy: { rate: 'desc' as const } },
+  expenses: true,
+  order: {
+    select: { id: true, cleaningType: true, area: true, seats: true },
+  },
+};
+
+@Injectable()
+export class ReportsService {
+  constructor(
+    private prisma: PrismaService,
+    private notifications: NotificationsService,
+  ) {}
+
+  private scope(user: AuthUser): Prisma.ReportWhereInput {
+    return user.role === Role.DIRECTOR ? {} : { managerId: user.id };
+  }
+
+  list(user: AuthUser) {
+    return this.prisma.report.findMany({
+      where: this.scope(user),
+      include: reportInclude,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async getOne(user: AuthUser, id: string) {
+    const report = await this.prisma.report.findUnique({
+      where: { id },
+      include: reportInclude,
+    });
+    if (!report) throw new NotFoundException('Отчёт не найден');
+    if (user.role !== Role.DIRECTOR && report.managerId !== user.id) {
+      throw new NotFoundException('Отчёт не найден');
+    }
+    return report;
+  }
+
+  private sanitizeWorkers(input?: WorkerInput[]) {
+    return (Array.isArray(input) ? input : [])
+      .filter((w) => str(w?.fullName))
+      .map((w) => ({
+        cleanerId: idOrNull(w.cleanerId),
+        fullName: str(w.fullName),
+        role: str(w.role) || 'Клинер',
+        // явный 0 дней допустим (работник в ведомости только со штрафом)
+        days: Math.min(MAX_DAYS, int(w.days, 1)),
+        rate: int(w.rate),
+        fine: int(w.fine),
+        extra: int(w.extra),
+      }));
+  }
+
+  private sanitizeExpenses(input?: ExpenseInput[]) {
+    return (Array.isArray(input) ? input : [])
+      .filter((e) => str(e?.title) && int(e?.amount) > 0)
+      .map((e) => ({
+        title: str(e.title),
+        initiator: str(e.initiator) || null,
+        amount: int(e.amount),
+        comment: str(e.comment) || null,
+      }));
+  }
+
+  private baseData(dto: ReportInput) {
+    if (!str(dto.clientName)) {
+      throw new BadRequestException('Укажите клиента / объект');
+    }
+    return {
+      orderId: idOrNull(dto.orderId),
+      clientName: str(dto.clientName),
+      clientPhone: str(dto.clientPhone) || null,
+      address: str(dto.address) || null,
+      workDate: dayUTC(typeof dto.workDate === 'string' ? dto.workDate : null),
+      workEndDate: dayUTC(
+        typeof dto.workEndDate === 'string' ? dto.workEndDate : null,
+      ),
+      unitsLabel: str(dto.unitsLabel) || null,
+      extraServices: str(dto.extraServices) || null,
+      discount: int(dto.discount),
+      totalPrice: int(dto.totalPrice),
+      arrivedBy: str(dto.arrivedBy) || null,
+      brigadierName: str(dto.brigadierName) || null,
+    };
+  }
+
+  /** Ошибки внешних ключей (битый orderId/cleanerId) → понятный 400 */
+  private mapPrismaError(e: unknown): never {
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      (e.code === 'P2003' || e.code === 'P2025')
+    ) {
+      throw new BadRequestException(
+        'Заказ или клинер не найден — обновите страницу',
+      );
+    }
+    throw e;
+  }
+
+  async create(user: AuthUser, dto: ReportInput) {
+    try {
+      return await this.prisma.report.create({
+        data: {
+          ...this.baseData(dto),
+          managerId: user.id,
+          managerName: str(dto.managerName) || user.fullName,
+          workers: { create: this.sanitizeWorkers(dto.workers) },
+          expenses: { create: this.sanitizeExpenses(dto.expenses) },
+        },
+        include: reportInclude,
+      });
+    } catch (e) {
+      this.mapPrismaError(e);
+    }
+  }
+
+  async update(user: AuthUser, id: string, dto: ReportInput) {
+    const report = await this.getOne(user, id); // доступ + запасное имя менеджера
+    if (report.status === ReportStatus.ACCEPTED) {
+      throw new BadRequestException('Принятый отчёт нельзя изменить');
+    }
+    try {
+      // статус проверяется условной записью ВНУТРИ транзакции —
+      // параллельное «Принять» не может быть молча перезаписано
+      return await this.prisma.$transaction(async (tx) => {
+        const res = await tx.report.updateMany({
+          where: { id, status: { not: ReportStatus.ACCEPTED } },
+          data: {
+            ...this.baseData(dto),
+            managerName: str(dto.managerName) || report.managerName,
+          },
+        });
+        if (res.count === 0) {
+          throw new BadRequestException('Принятый отчёт нельзя изменить');
+        }
+        await tx.reportWorker.deleteMany({ where: { reportId: id } });
+        await tx.reportExpense.deleteMany({ where: { reportId: id } });
+        const workers = this.sanitizeWorkers(dto.workers).map((w) => ({
+          ...w,
+          reportId: id,
+        }));
+        if (workers.length) await tx.reportWorker.createMany({ data: workers });
+        const expenses = this.sanitizeExpenses(dto.expenses).map((e) => ({
+          ...e,
+          reportId: id,
+        }));
+        if (expenses.length)
+          await tx.reportExpense.createMany({ data: expenses });
+        return tx.report.findUniqueOrThrow({
+          where: { id },
+          include: reportInclude,
+        });
+      });
+    } catch (e) {
+      this.mapPrismaError(e);
+    }
+  }
+
+  /** Отправка основателю: черновик → отправлен + уведомление директорам */
+  async send(user: AuthUser, id: string) {
+    const report = await this.getOne(user, id);
+    if (report.status !== ReportStatus.DRAFT) {
+      throw new BadRequestException('Отчёт уже отправлен');
+    }
+    const updated = await this.prisma.report.update({
+      where: { id },
+      data: { status: ReportStatus.SENT, sentAt: new Date() },
+      include: reportInclude,
+    });
+    await this.notifications.notifyDirectors({
+      type: NotificationType.REPORT_SENT,
+      title: 'Новая платёжная ведомость',
+      message: `${updated.managerName ?? 'Менеджер'} · ${updated.clientName} · ${updated.totalPrice} сомони`,
+    });
+    return updated;
+  }
+
+  /**
+   * Принятие основателем. Автоматически разносит данные в «Смены и выплаты»:
+   * каждому работнику ведомости — смены (дни подряд от даты работ, снапшот
+   * ставки из ведомости), штрафы из ведомости — в штрафы.
+   * Уже существующие смены на те же даты не дублируются.
+   */
+  async accept(user: AuthUser, id: string) {
+    if (user.role !== Role.DIRECTOR) {
+      throw new ForbiddenException('Принимать отчёты может только основатель');
+    }
+    const report = await this.getOne(user, id);
+    if (report.status === ReportStatus.ACCEPTED) {
+      throw new BadRequestException('Отчёт уже принят');
+    }
+
+    const start =
+      report.workDate ?? dayUTC(todayDushanbe()) ?? new Date();
+
+    const shiftRows: {
+      date: Date;
+      cleanerId: string;
+      rate: number;
+      note: string;
+    }[] = [];
+    const fineRows: {
+      cleanerId: string;
+      amount: number;
+      reason: string;
+      date: Date;
+      createdById: string;
+    }[] = [];
+
+    for (const w of report.workers) {
+      if (!w.cleanerId) continue; // работник без привязки к клинеру — только в ведомости
+      const days = Math.min(MAX_DAYS, w.days); // защита от битых старых строк
+      for (let i = 0; i < days; i++) {
+        shiftRows.push({
+          date: new Date(start.getTime() + i * 24 * 3600 * 1000),
+          cleanerId: w.cleanerId,
+          // «доп. услуги» работника учитываем в выплате первого дня,
+          // чтобы сумма в выплатах сошлась с ведомостью
+          rate: w.rate + (i === 0 ? w.extra : 0),
+          note: `Ведомость: ${report.clientName}`,
+        });
+      }
+      if (w.fine > 0) {
+        fineRows.push({
+          cleanerId: w.cleanerId,
+          amount: w.fine,
+          reason: `По ведомости — ${report.clientName}`,
+          date: start,
+          createdById: user.id,
+        });
+      }
+    }
+
+    // атомарно: статус меняется условно (защита от двойного клика/гонки) —
+    // смены и штрафы создаются только если именно этот запрос принял отчёт
+    return this.prisma.$transaction(async (tx) => {
+      const res = await tx.report.updateMany({
+        where: { id, status: { not: ReportStatus.ACCEPTED } },
+        data: {
+          status: ReportStatus.ACCEPTED,
+          acceptedAt: new Date(),
+          acceptedById: user.id,
+        },
+      });
+      if (res.count === 0) {
+        throw new BadRequestException('Отчёт уже принят');
+      }
+      // upsert: принятая ведомость авторитетна — если смена на этот день уже
+      // была отмечена вручную, её ставка обновляется по ведомости (без дублей)
+      for (const row of shiftRows) {
+        await tx.shift.upsert({
+          where: {
+            cleanerId_date: { cleanerId: row.cleanerId, date: row.date },
+          },
+          create: row,
+          update: { rate: row.rate, note: row.note },
+        });
+      }
+      if (fineRows.length > 0) {
+        await tx.fine.createMany({ data: fineRows });
+      }
+      return tx.report.findUniqueOrThrow({
+        where: { id },
+        include: reportInclude,
+      });
+    });
+  }
+
+  async remove(user: AuthUser, id: string) {
+    const report = await this.getOne(user, id);
+    if (report.status === ReportStatus.ACCEPTED && user.role !== Role.DIRECTOR) {
+      throw new BadRequestException('Принятый отчёт может удалить только основатель');
+    }
+    await this.prisma.report.delete({ where: { id } }); // строки удалятся каскадом
+    return { ok: true };
+  }
+}

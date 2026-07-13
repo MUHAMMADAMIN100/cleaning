@@ -183,10 +183,58 @@ export interface ScheduleEvent {
 
 export interface NotificationItem {
   id: string;
-  type: 'NEW_LEAD' | 'NEW_TASK' | 'ORDER_STATUS_CHANGED';
+  type: 'NEW_LEAD' | 'NEW_TASK' | 'ORDER_STATUS_CHANGED' | 'REPORT_SENT';
   title: string;
   message: string;
   isRead: boolean;
+  createdAt: string;
+}
+
+// ─── Платёжные ведомости (отчёты по объектам) ───
+
+export type ReportStatus = 'DRAFT' | 'SENT' | 'ACCEPTED';
+
+export interface ReportWorker {
+  id?: string;
+  cleanerId?: string | null;
+  fullName: string;
+  role: string; // «Бригадир» / «Клинер»
+  days: number;
+  rate: number;
+  fine: number;
+  extra: number;
+}
+
+export interface ReportExpense {
+  id?: string;
+  title: string;
+  initiator?: string | null;
+  amount: number;
+  comment?: string | null;
+}
+
+export interface Report {
+  id: string;
+  status: ReportStatus;
+  orderId?: string | null;
+  clientName: string;
+  clientPhone?: string | null;
+  address?: string | null;
+  workDate?: string | null;
+  workEndDate?: string | null;
+  unitsLabel?: string | null;
+  extraServices?: string | null;
+  discount: number;
+  totalPrice: number;
+  arrivedBy?: string | null;
+  brigadierName?: string | null;
+  managerName?: string | null;
+  managerId: string;
+  manager?: { id: string; fullName: string };
+  sentAt?: string | null;
+  acceptedAt?: string | null;
+  workers: ReportWorker[];
+  expenses: ReportExpense[];
   createdAt: string;
 }
 

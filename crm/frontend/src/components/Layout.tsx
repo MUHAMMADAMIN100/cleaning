@@ -9,6 +9,7 @@ import {
   CalendarDays,
   UsersRound,
   Wallet,
+  FileText,
   BarChart3,
   Tags,
   UserCog,
@@ -37,6 +38,7 @@ const NAV: NavItem[] = [
   { to: '/schedule', label: 'Расписание', icon: CalendarDays },
   { to: '/team', label: 'Команда', icon: UsersRound },
   { to: '/shifts', label: 'Смены и выплаты', icon: Wallet },
+  { to: '/reports', label: 'Отчёты', icon: FileText },
   { to: '/analytics', label: 'Аналитика', icon: BarChart3 },
   { to: '/tariffs', label: 'Тарифы', icon: Tags, roles: ['DIRECTOR'] },
   { to: '/users', label: 'Сотрудники', icon: UserCog, roles: ['DIRECTOR'] },
@@ -76,6 +78,7 @@ export function Layout() {
       '/cleaners',
       '/cleaners/team-tasks',
       '/brigades',
+      '/reports',
       '/users/managers',
     ];
     if (user.role === 'DIRECTOR') urls.push('/tariffs', '/users');

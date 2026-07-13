@@ -13,6 +13,9 @@ import { Tasks } from './pages/Tasks';
 import { Schedule } from './pages/Schedule';
 import { Team } from './pages/Team';
 import { Shifts } from './pages/Shifts';
+import { Reports } from './pages/Reports';
+import { ReportEdit } from './pages/ReportEdit';
+import { ReportView } from './pages/ReportView';
 import { Analytics } from './pages/Analytics';
 import { Tariffs } from './pages/Tariffs';
 import { UsersPage } from './pages/Users';
@@ -70,6 +73,10 @@ export default function App() {
         <Route path="/schedule" element={<Schedule />} />
         <Route path="/team" element={<Team />} />
         <Route path="/shifts" element={<Shifts />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/reports/new" element={<ReportEdit />} />
+        <Route path="/reports/:id" element={<ReportView />} />
+        <Route path="/reports/:id/edit" element={<ReportEdit />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route
           path="/tariffs"

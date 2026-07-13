@@ -88,6 +88,11 @@ function DayMarking() {
     () => new Set((dayShifts ?? []).map((s) => s.cleanerId)),
     [dayShifts],
   );
+  // ставка-снапшот уже отмеченной смены (может отличаться от текущей ставки клинера)
+  const shiftRateById = useMemo(
+    () => new Map((dayShifts ?? []).map((s) => [s.cleanerId, s.rate])),
+    [dayShifts],
+  );
   const dirty =
     checked.size !== serverIds.size ||
     [...checked].some((id) => !serverIds.has(id));
@@ -228,6 +233,8 @@ function DayMarking() {
           Отмечено: <b className="text-navy-900">{checked.size}</b> ·{' '}
           {formatPrice(
             [...checked].reduce((sum, id) => {
+              const snapshot = shiftRateById.get(id);
+              if (snapshot != null) return sum + snapshot;
               const c = (cleaners ?? []).find((x) => x.id === id);
               return sum + (c?.rate ?? 0);
             }, 0),

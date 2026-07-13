@@ -84,6 +84,14 @@ enum NotificationType {
   NEW_LEAD // новая заявка с сайта (менеджеру)
   NEW_TASK // новая задача от руководителя (менеджеру)
   ORDER_STATUS_CHANGED // смена статуса крупного заказа (руководителю)
+  REPORT_SENT // менеджер отправил платёжную ведомость (руководителю)
+}
+
+/// Статус платёжной ведомости (отчёта по объекту)
+enum ReportStatus {
+  DRAFT // черновик
+  SENT // отправлен основателю
+  ACCEPTED // принят основателем (смены/штрафы разнесены в выплаты)
 }
 
 enum ScheduleType {
@@ -118,6 +126,7 @@ model User {
   tasksCreated  Task[]          @relation("TaskCreator")
   schedule      ScheduleEvent[]
   notifications Notification[]
+  reports       Report[]        @relation("ReportManager")
 }
 
 /// Клинер — член бригады. НЕ имеет доступа в CRM.
@@ -132,11 +141,12 @@ model Cleaner {
   managerId String?
   brigade   Brigade? @relation("BrigadeMembers", fields: [brigadeId], references: [id], onDelete: SetNull)
   brigadeId String?
-  leaderOf  Brigade? @relation("BrigadeLeader")
-  orders    Order[]  @relation("OrderCleaners")
-  shifts    Shift[]
-  fines     Fine[]
-  createdAt DateTime @default(now())
+  leaderOf   Brigade?       @relation("BrigadeLeader")
+  orders     Order[]        @relation("OrderCleaners")
+  shifts     Shift[]
+  fines      Fine[]
+  reportRows ReportWorker[]
+  createdAt  DateTime       @default(now())
 
   @@index([brigadeId])
 }
@@ -234,6 +244,7 @@ model Order {
   isLarge         Boolean   @default(false) // крупный заказ (для уведомления руководителю)
 
   cleaners  Cleaner[] @relation("OrderCleaners") // назначенная команда
+  reports   Report[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   closedAt  DateTime?
@@ -290,6 +301,74 @@ model Notification {
   createdAt DateTime         @default(now())
 
   @@index([userId, isRead])
+}
+
+/// Платёжная ведомость по объекту (отчёт менеджера основателю)
+model Report {
+  id     String       @id @default(cuid())
+  status ReportStatus @default(DRAFT)
+
+  // объект (снапшоты — отчёт не меняется при правках заказа)
+  order         Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderId       String?
+  clientName    String
+  clientPhone   String?
+  address       String?
+  workDate      DateTime? // дата начала работ
+  workEndDate   DateTime? // дата завершения (если многодневный объект)
+  unitsLabel    String? // «180 м² по 25 с» — площадь/места и цена за единицу
+  extraServices String? // доп. услуга и стоимость на единицу (текстом, как на бланке)
+  discount      Int       @default(0) // предоставленная скидка
+  totalPrice    Int       @default(0) // итоговая стоимость (выручка по объекту)
+  arrivedBy     String? // прибыл(а)
+  brigadierName String? // ответственный бригадир
+  managerName   String? // ответственный менеджер (снапшот)
+
+  manager      User      @relation("ReportManager", fields: [managerId], references: [id], onDelete: Cascade)
+  managerId    String
+  sentAt       DateTime?
+  acceptedAt   DateTime?
+  acceptedById String?
+
+  workers  ReportWorker[]
+  expenses ReportExpense[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([managerId, status])
+  @@index([status])
+}
+
+/// Строка таблицы работников ведомости
+model ReportWorker {
+  id        String   @id @default(cuid())
+  report    Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reportId  String
+  cleaner   Cleaner? @relation(fields: [cleanerId], references: [id], onDelete: SetNull)
+  cleanerId String?
+  fullName  String // снапшот ФИО
+  role      String  @default("Клинер") // «Бригадир» / «Клинер»
+  days      Int     @default(1) // дней/смен
+  rate      Int // ставка за день (снапшот)
+  fine      Int     @default(0) // штраф
+  extra     Int     @default(0) // доп. услуги (сумма)
+  // сумма к выплате = days × rate − fine + extra (вычисляется)
+
+  @@index([reportId])
+}
+
+/// Строка «Доп. расходы» ведомости
+model ReportExpense {
+  id        String  @id @default(cuid())
+  report    Report  @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reportId  String
+  title     String // наименование расхода
+  initiator String? // инициатор
+  amount    Int // сумма
+  comment   String? // комментарий
+
+  @@index([reportId])
 }
 
 /// Тариф — цены по типу уборки и степени загрязнения (управление руководителем)

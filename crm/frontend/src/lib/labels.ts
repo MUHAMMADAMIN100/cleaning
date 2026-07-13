@@ -5,6 +5,7 @@ import type {
   FunnelStage,
   LeadSource,
   Order,
+  ReportStatus,
   ScheduleType,
   TaskPriority,
   TaskStatus,
@@ -114,6 +115,18 @@ export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
   OPEN: 'Открыта',
   IN_PROGRESS: 'В работе',
   DONE: 'Выполнена',
+};
+
+export const REPORT_STATUS_LABEL: Record<ReportStatus, string> = {
+  DRAFT: 'Черновик',
+  SENT: 'Отправлен',
+  ACCEPTED: 'Принят',
+};
+
+export const REPORT_STATUS_COLOR: Record<ReportStatus, string> = {
+  DRAFT: 'bg-navy-100 text-navy-600',
+  SENT: 'bg-amber-100 text-amber-700',
+  ACCEPTED: 'bg-green-100 text-green-700',
 };
 
 export const SCHEDULE_LABEL: Record<ScheduleType, string> = {
