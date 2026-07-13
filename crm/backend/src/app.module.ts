@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { ProxyThrottlerGuard } from './common/guards/proxy-throttler.guard';
 
 import { PrismaModule } from './prisma/prisma.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -49,8 +50,8 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
   ],
   controllers: [AppController],
   providers: [
-    // Rate-limit применяется первым (до аутентификации)
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Rate-limit применяется первым (до аутентификации); ключ — реальный IP за прокси
+    { provide: APP_GUARD, useClass: ProxyThrottlerGuard },
     // Глобальная JWT-защита: все роуты требуют авторизации, кроме @Public
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
