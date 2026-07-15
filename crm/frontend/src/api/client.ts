@@ -1,6 +1,18 @@
 import axios from 'axios';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+/**
+ * В проде обращаемся к API через СВОЙ домен (/api проксируется на Railway
+ * через vercel.json). Тогда для браузера это один сайт (first-party) и
+ * cookie-авторизация работает везде, включая iOS Safari и встроенные
+ * браузеры (Telegram/Instagram), где межсайтовые cookie блокируются ITP.
+ * Локально — прямой адрес из VITE_API_URL.
+ */
+const isLocalhost =
+  typeof window !== 'undefined' &&
+  /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
+const baseURL = isLocalhost
+  ? import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
+  : '/api';
 
 /**
  * Авторизация — только через httpOnly-cookie (withCredentials).
