@@ -9,7 +9,7 @@ import { api } from '../api/client';
 import { useFetch } from '../api/hooks';
 import { useToast } from '../components/Toast';
 import { useDialog } from '../components/Dialog';
-import { Spinner, PageHeader, Badge } from '../components/ui';
+import { Spinner, PageHeader, Badge, ErrorState } from '../components/ui';
 import { OrderModal } from '../components/OrderModal';
 import {
   STAGE_COLOR,
@@ -22,7 +22,7 @@ import type { BoardColumn, FunnelStage, Order } from '../types';
 export function Funnel() {
   const toast = useToast();
   const dialog = useDialog();
-  const { data, loading, reload, setData } = useFetch<BoardColumn[]>(
+  const { data, loading, error, reload, setData } = useFetch<BoardColumn[]>(
     '/orders/board',
     { pollMs: 10000 },
   );
@@ -98,7 +98,10 @@ export function Funnel() {
     }
   };
 
-  if (loading || !data) return <Spinner />;
+  if (!data) {
+    if (error && !loading) return <ErrorState onRetry={reload} />;
+    return <Spinner />;
+  }
 
   return (
     <div>

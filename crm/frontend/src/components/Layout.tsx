@@ -71,10 +71,18 @@ export function Layout() {
   });
 
   // Прогрев кэша разделов после входа — переходы будут мгновенными.
-  // Тяжёлую аналитику (/analytics/full) не греем в общем всплеске —
-  // подтянется при заходе на страницу.
+  // На мобильном критично: НЕ греем на медленной/эконом-сети и разносим
+  // запросы во времени, чтобы не забить канал и не задержать загрузку
+  // текущей страницы (иначе «вечный спиннер» на LTE).
   useEffect(() => {
     if (!user) return;
+    const conn = (navigator as any).connection;
+    if (
+      conn &&
+      (conn.saveData || /(slow-2g|2g)$/.test(conn.effectiveType || ''))
+    ) {
+      return; // экономный режим / медленная сеть — прогрев пропускаем
+    }
     const urls = [
       '/orders/board',
       '/clients?sort=recent',
@@ -88,7 +96,25 @@ export function Layout() {
       '/users/managers',
     ];
     if (user.role === 'DIRECTOR') urls.push('/tariffs', '/users');
-    urls.forEach(prefetch);
+
+    let i = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    let idleId: number | undefined;
+    const kick = () => {
+      if (i >= urls.length) return;
+      prefetch(urls[i++]);
+      timer = setTimeout(kick, 250); // по одному запросу раз в 250 мс
+    };
+    const start = () => {
+      timer = setTimeout(kick, 600); // сначала даём загрузиться текущей странице
+    };
+    const w = window as any;
+    if (w.requestIdleCallback) idleId = w.requestIdleCallback(start, { timeout: 2000 });
+    else start();
+    return () => {
+      clearTimeout(timer);
+      if (idleId !== undefined && w.cancelIdleCallback) w.cancelIdleCallback(idleId);
+    };
   }, [user]);
 
   const handleLogout = async () => {

@@ -92,6 +92,26 @@ export function EmptyState({ text }: { text: string }) {
   );
 }
 
+/** Ошибка загрузки с кнопкой повтора (вместо бесконечного спиннера). */
+export function ErrorState({
+  text = 'Не удалось загрузить данные. Проверьте интернет.',
+  onRetry,
+}: {
+  text?: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-3 py-16 text-center">
+      <div className="max-w-xs text-sm text-navy-500">{text}</div>
+      {onRetry && (
+        <button onClick={onRetry} className="btn-primary">
+          Повторить
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function Modal({
   open,
   onClose,

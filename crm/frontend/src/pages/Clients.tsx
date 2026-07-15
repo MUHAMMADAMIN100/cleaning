@@ -4,7 +4,14 @@ import { Plus, Download, Search } from 'lucide-react';
 import { api } from '../api/client';
 import { useFetch, mutateCache } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
-import { Spinner, PageHeader, Badge, Modal, EmptyState } from '../components/ui';
+import {
+  Spinner,
+  PageHeader,
+  Badge,
+  Modal,
+  EmptyState,
+  ErrorState,
+} from '../components/ui';
 import { useToast } from '../components/Toast';
 import {
   TAG_LABEL,
@@ -56,7 +63,7 @@ export function Clients() {
   if (source) query.set('source', source);
   query.set('sort', sort);
 
-  const { data, loading, reload, setData } = useFetch<Client[]>(
+  const { data, loading, error, reload, setData } = useFetch<Client[]>(
     `/clients?${query.toString()}`,
     { deps: [search, tag, source, sort], pollMs: 15000 },
   );
@@ -186,7 +193,9 @@ export function Clients() {
         </select>
       </div>
 
-      {loading || !data ? (
+      {!data && error && !loading ? (
+        <ErrorState onRetry={reload} />
+      ) : loading || !data ? (
         <Spinner />
       ) : data.length === 0 ? (
         <EmptyState text="Клиенты не найдены" />

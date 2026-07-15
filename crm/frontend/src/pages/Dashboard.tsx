@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { useFetch } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
-import { Spinner, PageHeader } from '../components/ui';
+import { Spinner, PageHeader, ErrorState } from '../components/ui';
 import { formatPrice, formatVolume } from '../lib/labels';
 import type { Order, Task } from '../types';
 
@@ -23,15 +23,21 @@ interface Summary {
 
 export function Dashboard() {
   const { user } = useAuth();
-  const { data, loading } = useFetch<Summary>('/analytics/summary', {
-    pollMs: 15000,
-  });
+  const { data, loading, error, reload } = useFetch<Summary>(
+    '/analytics/summary',
+    { pollMs: 15000 },
+  );
   const { data: orders } = useFetch<Order[]>('/orders?stage=NEW', {
     pollMs: 15000,
   });
   const { data: tasks } = useFetch<Task[]>('/tasks', { pollMs: 20000 });
 
-  if (loading || !data) return <Spinner />;
+  // нет данных: показываем ошибку с повтором (а не вечный спиннер),
+  // если запрос завершился ошибкой; иначе — спиннер загрузки
+  if (!data) {
+    if (error && !loading) return <ErrorState onRetry={reload} />;
+    return <Spinner />;
+  }
 
   const cards = [
     { label: 'Новые заявки', value: data.newLeads, icon: Inbox, color: 'bg-navy-100 text-navy-700', to: '/funnel' },
