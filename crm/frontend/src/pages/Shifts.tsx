@@ -18,7 +18,7 @@ import { useToast } from '../components/Toast';
 import { useDialog } from '../components/Dialog';
 import { DatePicker } from '../components/DatePicker';
 import { formatPrice, formatDate } from '../lib/labels';
-import { withRetry } from '../lib/util';
+import { tempId, withRetry } from '../lib/util';
 import type { Brigade, Cleaner, Fine, PayrollSummary, Shift } from '../types';
 
 /** Локальная дата в «YYYY-MM-DD» (без сдвига часового пояса) */
@@ -67,12 +67,12 @@ function DayMarking() {
     data: dayShifts,
     loading,
     reload,
+    setData: setDayShifts,
   } = useFetch<Shift[]>(`/payroll/shifts?from=${date}&to=${date}`, {
     deps: [date],
   });
 
   const [checked, setChecked] = useState<Set<string>>(new Set());
-  const [saving, setSaving] = useState(false);
 
   // Галочки заполняем с сервера ОДИН раз на дату (и после сохранения) —
   // фоновые обновления не должны затирать несохранённые отметки.
@@ -112,24 +112,41 @@ function DayMarking() {
       return next;
     });
 
-  const save = async () => {
-    setSaving(true);
-    try {
-      await withRetry(() =>
-        api.post('/payroll/shifts/day', {
-          date,
-          cleanerIds: [...checked],
-          baseline: baselineRef.current,
-        }),
-      );
-      toast.success('Смены сохранены');
-      syncedFor.current = null; // после сохранения принять свежее состояние сервера
-      reload();
-    } catch (e: any) {
-      toast.error(e?.response?.data?.message || 'Не удалось сохранить смены');
-    } finally {
-      setSaving(false);
-    }
+  const save = () => {
+    const ids = [...checked];
+    const oldBaseline = baselineRef.current; // прежнее серверное состояние — для сервера
+    // оптимистично: сразу считаем смены сохранёнными (кнопка → «Сохранено»)
+    const byId = new Map((dayShifts ?? []).map((s) => [s.cleanerId, s]));
+    setDayShifts(
+      ids.map(
+        (id) =>
+          byId.get(id) ?? {
+            id: tempId(),
+            date,
+            cleanerId: id,
+            rate: (cleaners ?? []).find((c) => c.id === id)?.rate ?? 0,
+          },
+      ),
+    );
+    baselineRef.current = ids;
+    syncedFor.current = date; // фоновый refetch не должен перетирать отметки
+    toast.success('Смены сохранены');
+    withRetry(() =>
+      api.post('/payroll/shifts/day', {
+        date,
+        cleanerIds: ids,
+        baseline: oldBaseline,
+      }),
+    )
+      .then(() => {
+        syncedFor.current = null; // принять свежее состояние сервера
+        reload();
+      })
+      .catch((e: any) => {
+        toast.error(e?.response?.data?.message || 'Не удалось сохранить смены');
+        syncedFor.current = null;
+        reload(); // откат к серверному состоянию
+      });
   };
 
   const unassigned = (cleaners ?? []).filter((c) => !c.brigadeId && c.isActive);
@@ -250,13 +267,13 @@ function DayMarking() {
         </div>
         <button
           onClick={save}
-          disabled={!dirty || saving}
+          disabled={!dirty}
           className={dirty ? 'btn-primary' : 'btn-ghost !text-navy-400'}
         >
           {dirty ? (
             <>
               <Save className="h-4 w-4" />
-              {saving ? 'Сохранение…' : 'Сохранить смены'}
+              Сохранить смены
             </>
           ) : (
             <>
@@ -284,10 +301,13 @@ function PayrollSection() {
   } = useFetch<PayrollSummary>(`/payroll?from=${from}&to=${to}`, {
     deps: [from, to],
   });
-  const { data: fines, reload: reloadFines } = useFetch<Fine[]>(
-    `/payroll/fines?from=${from}&to=${to}`,
-    { deps: [from, to] },
-  );
+  const {
+    data: fines,
+    reload: reloadFines,
+    setData: setFines,
+  } = useFetch<Fine[]>(`/payroll/fines?from=${from}&to=${to}`, {
+    deps: [from, to],
+  });
   const { data: cleaners } = useFetch<Cleaner[]>('/cleaners');
 
   const [fineFor, setFineFor] = useState<string | 'any' | null>(null);
@@ -305,13 +325,47 @@ function PayrollSection() {
       danger: true,
     });
     if (!ok) return;
-    try {
-      await withRetry(() => api.delete(`/payroll/fines/${f.id}`));
-      toast.success('Штраф удалён');
-    } catch (e: any) {
-      toast.error(e?.response?.data?.message || 'Не удалось удалить штраф');
-    }
-    reload();
+    // оптимистично: штраф исчезает сразу, суммы выплат обновим после ответа
+    setFines((list) => (list ? list.filter((x) => x.id !== f.id) : list));
+    toast.success('Штраф удалён');
+    api
+      .delete(`/payroll/fines/${f.id}`)
+      .then(() => reloadPayroll())
+      .catch((e: any) => {
+        toast.error(e?.response?.data?.message || 'Не удалось удалить штраф');
+        reload(); // вернуть серверное состояние
+      });
+  };
+
+  // назначение штрафа — оптимистично: появляется сразу, запрос в фоне
+  const addFine = (payload: {
+    cleanerId: string;
+    amount: number;
+    reason: string;
+    date: string;
+  }) => {
+    const c = (cleaners ?? []).find((x) => x.id === payload.cleanerId);
+    const optimistic: Fine = {
+      id: tempId(),
+      cleanerId: payload.cleanerId,
+      amount: payload.amount,
+      reason: payload.reason,
+      date: payload.date,
+      cleaner: c
+        ? { id: c.id, fullName: c.fullName, brigade: c.brigade ?? null }
+        : undefined,
+    };
+    setFines((list) => (list ? [optimistic, ...list] : [optimistic]));
+    toast.success('Штраф назначен');
+    api
+      .post('/payroll/fines', payload)
+      .then(() => reload())
+      .catch((e: any) => {
+        toast.error(e?.response?.data?.message || 'Не удалось назначить штраф');
+        setFines((list) =>
+          list ? list.filter((x) => x.id !== optimistic.id) : list,
+        );
+      });
   };
 
   const shiftMonth = (delta: number) =>
@@ -497,11 +551,11 @@ function PayrollSection() {
         <FineModal
           cleaners={cleaners ?? []}
           initialCleanerId={fineFor === 'any' ? undefined : fineFor}
+          // по умолчанию — дата в рамках просматриваемого месяца,
+          // чтобы оптимистичный штраф сразу попал в текущий период
+          defaultDate={todayISO() >= from && todayISO() <= to ? todayISO() : from}
           onClose={() => setFineFor(null)}
-          onSaved={() => {
-            setFineFor(null);
-            reload();
-          }}
+          onSubmit={addFine}
         />
       )}
     </div>
@@ -512,36 +566,35 @@ function PayrollSection() {
 function FineModal({
   cleaners,
   initialCleanerId,
+  defaultDate,
   onClose,
-  onSaved,
+  onSubmit,
 }: {
   cleaners: Cleaner[];
   initialCleanerId?: string;
+  defaultDate?: string;
   onClose: () => void;
-  onSaved: () => void;
+  onSubmit: (payload: {
+    cleanerId: string;
+    amount: number;
+    reason: string;
+    date: string;
+  }) => void;
 }) {
-  const toast = useToast();
   const [cleanerId, setCleanerId] = useState(initialCleanerId ?? '');
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
-  const [date, setDate] = useState(() => todayISO());
-  const [saving, setSaving] = useState(false);
+  const [date, setDate] = useState(() => defaultDate ?? todayISO());
 
-  const submit = async () => {
-    setSaving(true);
-    try {
-      await api.post('/payroll/fines', {
-        cleanerId,
-        amount: Number(amount),
-        reason: reason.trim(),
-        date,
-      });
-      toast.success('Штраф назначен');
-      onSaved();
-    } catch (e: any) {
-      toast.error(e?.response?.data?.message || 'Не удалось назначить штраф');
-      setSaving(false);
-    }
+  // оптимистично: применяем и закрываем сразу, запрос — в фоне
+  const submit = () => {
+    onSubmit({
+      cleanerId,
+      amount: Number(amount),
+      reason: reason.trim(),
+      date,
+    });
+    onClose();
   };
 
   return (
@@ -599,10 +652,10 @@ function FineModal({
           </button>
           <button
             onClick={submit}
-            disabled={saving || !cleanerId || !Number(amount) || !reason.trim()}
+            disabled={!cleanerId || !Number(amount) || !reason.trim()}
             className="btn-primary"
           >
-            {saving ? 'Сохранение…' : 'Назначить штраф'}
+            Назначить штраф
           </button>
         </div>
       </div>

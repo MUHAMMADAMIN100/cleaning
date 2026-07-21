@@ -8,7 +8,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { api } from '../api/client';
-import { useFetch } from '../api/hooks';
+import { useFetch, mutateCache } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
 import { Spinner, Badge } from '../components/ui';
 import { useToast } from '../components/Toast';
@@ -32,7 +32,7 @@ export function ReportView() {
   const { user } = useAuth();
   const isDirector = user?.role === 'DIRECTOR';
 
-  const { data: r, loading, error, reload } = useFetch<Report>(
+  const { data: r, loading, error, reload, setData } = useFetch<Report>(
     `/reports/${id}`,
     { deps: [id] },
   );
@@ -58,14 +58,20 @@ export function ReportView() {
   const expensesSum = r.expenses.reduce((s, e) => s + e.amount, 0);
   const canEdit = r.status !== 'ACCEPTED';
 
-  const sendReport = async () => {
-    try {
-      await api.post(`/reports/${r.id}/send`);
-      toast.success('Отчёт отправлен основателю');
-    } catch (e: any) {
+  const sendReport = () => {
+    // оптимистично: бейдж сразу становится «Отправлен», запрос — в фоне
+    setData((rep) => (rep ? { ...rep, status: 'SENT' as Report['status'] } : rep));
+    // и в кэше списка — чтобы при возврате статус был актуальным сразу
+    mutateCache<Report[]>('/reports', (prev) =>
+      prev.map((x) =>
+        x.id === r.id ? { ...x, status: 'SENT' as Report['status'] } : x,
+      ),
+    );
+    toast.success('Отчёт отправлен основателю');
+    api.post(`/reports/${r.id}/send`).catch((e: any) => {
       toast.error(e?.response?.data?.message || 'Не удалось отправить отчёт');
-    }
-    reload(); // в любом случае показываем актуальный статус с сервера
+      reload(); // вернуть актуальный статус с сервера
+    });
   };
 
   const acceptReport = async () => {
@@ -98,14 +104,16 @@ export function ReportView() {
       danger: true,
     });
     if (!ok) return;
-    try {
-      await api.delete(`/reports/${r.id}`);
-      toast.success('Отчёт удалён');
-      navigate('/reports', { replace: true });
-    } catch (e: any) {
+    // оптимистично: убираем из кэша списка и сразу уходим на список,
+    // запрос удаления — в фоне; при ошибке покажем toast (поллинг вернёт отчёт)
+    mutateCache<Report[]>('/reports', (prev) =>
+      prev.filter((x) => x.id !== r.id),
+    );
+    toast.success('Отчёт удалён');
+    navigate('/reports', { replace: true });
+    api.delete(`/reports/${r.id}`).catch((e: any) => {
       toast.error(e?.response?.data?.message || 'Не удалось удалить отчёт');
-      reload();
-    }
+    });
   };
 
   return (

@@ -23,7 +23,7 @@ import {
   formatDateTime,
   formatVolume,
 } from '../lib/labels';
-import { withRetry } from '../lib/util';
+import { tempId } from '../lib/util';
 import type { Brigade, Cleaner, Manager, Order } from '../types';
 
 export function Team() {
@@ -39,11 +39,13 @@ export function Team() {
     data: brigades,
     loading: brigadesLoading,
     reload: reloadBrigades,
+    setData: setBrigades,
   } = useFetch<Brigade[]>('/brigades', { pollMs: 30000 });
-  const { data: cleaners, reload: reloadCleaners } = useFetch<Cleaner[]>(
-    '/cleaners',
-    { pollMs: 30000 },
-  );
+  const {
+    data: cleaners,
+    reload: reloadCleaners,
+    setData: setCleaners,
+  } = useFetch<Cleaner[]>('/cleaners', { pollMs: 30000 });
   const { data: dayTasks } = useFetch<Order[]>('/cleaners/team-tasks', {
     pollMs: 20000,
   });
@@ -70,13 +72,96 @@ export function Team() {
       danger: true,
     });
     if (!ok) return;
-    try {
-      await withRetry(() => api.delete(`/cleaners/${c.id}`));
-      toast.success('Клинер удалён');
-    } catch (e: any) {
+    // оптимистично: убираем из плоского списка и из бригад сразу
+    setCleaners((list) => (list ? list.filter((x) => x.id !== c.id) : list));
+    setBrigades((bs) =>
+      bs
+        ? bs.map((b) => ({
+            ...b,
+            cleaners: b.cleaners.filter((x) => x.id !== c.id),
+          }))
+        : bs,
+    );
+    toast.success('Клинер удалён');
+    api.delete(`/cleaners/${c.id}`).catch((e: any) => {
       toast.error(e?.response?.data?.message || 'Не удалось удалить клинера');
+      reloadAll(); // вернуть серверное состояние
+    });
+  };
+
+  // создание/редактирование клинера — оптимистично в плоском списке,
+  // вложенную структуру бригад досогласуем фоновым тихим reload
+  const upsertCleaner = (
+    payload: {
+      fullName: string;
+      phone: string | null;
+      rate?: number;
+      brigadeId: string | null;
+    },
+    existing?: Cleaner,
+  ) => {
+    // вставка клинера в нужную бригаду (и удаление из всех прочих)
+    const placeInBrigade = (bs: Brigade[] | null, c: Cleaner) =>
+      bs
+        ? bs.map((b) => ({
+            ...b,
+            cleaners:
+              b.id === c.brigadeId
+                ? [...b.cleaners.filter((x) => x.id !== c.id), c]
+                : b.cleaners.filter((x) => x.id !== c.id),
+          }))
+        : bs;
+
+    if (existing) {
+      const patched: Cleaner = {
+        ...existing,
+        fullName: payload.fullName,
+        phone: payload.phone ?? undefined,
+        rate: payload.rate ?? existing.rate,
+        brigadeId: payload.brigadeId,
+      };
+      setCleaners((list) =>
+        list ? list.map((c) => (c.id === existing.id ? patched : c)) : list,
+      );
+      // корректно переносим между бригадами (или убираем при «Без бригады»)
+      setBrigades((bs) => placeInBrigade(bs, patched));
+      api
+        .patch(`/cleaners/${existing.id}`, payload)
+        .then(() => reloadAll())
+        .catch((e: any) => {
+          toast.error(e?.response?.data?.message || 'Не удалось сохранить');
+          reloadAll();
+        });
+    } else {
+      const optimistic: Cleaner = {
+        id: tempId(),
+        fullName: payload.fullName,
+        phone: payload.phone ?? undefined,
+        rate: payload.rate ?? 230,
+        isActive: true,
+        brigadeId: payload.brigadeId,
+      };
+      setCleaners((list) => (list ? [...list, optimistic] : [optimistic]));
+      // если выбрана бригада — показываем клинера в ней сразу
+      setBrigades((bs) => placeInBrigade(bs, optimistic));
+      api
+        .post('/cleaners', payload)
+        .then(() => reloadAll())
+        .catch((e: any) => {
+          toast.error(e?.response?.data?.message || 'Не удалось сохранить');
+          setCleaners((list) =>
+            list ? list.filter((c) => c.id !== optimistic.id) : list,
+          );
+          setBrigades((bs) =>
+            bs
+              ? bs.map((b) => ({
+                  ...b,
+                  cleaners: b.cleaners.filter((x) => x.id !== optimistic.id),
+                }))
+              : bs,
+          );
+        });
     }
-    reloadAll();
   };
 
   if (brigadesLoading && !brigades) return <Spinner />;
@@ -329,10 +414,7 @@ export function Team() {
           cleaner={editCleaner}
           brigades={brigades ?? []}
           onClose={() => setEditCleaner(null)}
-          onSaved={() => {
-            setEditCleaner(null);
-            reloadAll();
-          }}
+          onSubmit={(payload) => upsertCleaner(payload, editCleaner)}
         />
       )}
       {addToBrigade !== null && (
@@ -340,10 +422,7 @@ export function Team() {
           brigades={brigades ?? []}
           initialBrigadeId={addToBrigade === 'open' ? undefined : addToBrigade}
           onClose={() => setAddToBrigade(null)}
-          onSaved={() => {
-            setAddToBrigade(null);
-            reloadAll();
-          }}
+          onSubmit={(payload) => upsertCleaner(payload)}
         />
       )}
     </div>
@@ -468,13 +547,18 @@ function CleanerModal({
   brigades,
   initialBrigadeId,
   onClose,
-  onSaved,
+  onSubmit,
 }: {
   cleaner?: Cleaner;
   brigades: Brigade[];
   initialBrigadeId?: string;
   onClose: () => void;
-  onSaved: () => void;
+  onSubmit: (payload: {
+    fullName: string;
+    phone: string | null;
+    rate?: number;
+    brigadeId: string | null;
+  }) => void;
 }) {
   const toast = useToast();
   const [fullName, setFullName] = useState(cleaner?.fullName ?? '');
@@ -483,28 +567,17 @@ function CleanerModal({
   const [brigadeId, setBrigadeId] = useState(
     cleaner?.brigadeId ?? initialBrigadeId ?? '',
   );
-  const [saving, setSaving] = useState(false);
 
-  const submit = async () => {
-    setSaving(true);
-    const payload = {
+  // оптимистично: применяем изменения и закрываем модалку сразу, запрос — в фоне
+  const submit = () => {
+    onSubmit({
       fullName: fullName.trim(),
       phone: phone.trim() || null, // null очищает телефон (undefined бы игнорировался)
       rate: rate ? Number(rate) : undefined, // пустое поле — ставку не менять
       brigadeId: brigadeId || null,
-    };
-    try {
-      if (cleaner) {
-        await api.patch(`/cleaners/${cleaner.id}`, payload);
-      } else {
-        await api.post('/cleaners', payload);
-      }
-      toast.success(cleaner ? 'Сохранено' : 'Клинер добавлен');
-      onSaved();
-    } catch (e: any) {
-      toast.error(e?.response?.data?.message || 'Не удалось сохранить');
-      setSaving(false);
-    }
+    });
+    toast.success(cleaner ? 'Сохранено' : 'Клинер добавлен');
+    onClose();
   };
 
   return (
@@ -566,10 +639,10 @@ function CleanerModal({
           </button>
           <button
             onClick={submit}
-            disabled={saving || !fullName.trim()}
+            disabled={!fullName.trim()}
             className="btn-primary"
           >
-            {saving ? 'Сохранение…' : cleaner ? 'Сохранить' : 'Добавить'}
+            {cleaner ? 'Сохранить' : 'Добавить'}
           </button>
         </div>
       </div>

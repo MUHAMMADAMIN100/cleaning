@@ -144,13 +144,13 @@ export function ClientCard() {
       danger: true,
     });
     if (!ok) return;
-    try {
-      await withRetry(() => api.delete(`/clients/${data.id}`));
-      toast.success('Клиент удалён');
-      navigate('/clients');
-    } catch (e: any) {
+    // оптимистично: сразу уходим к списку, удаление — в фоне
+    // (список сам подтянет актуальные данные тихим рефетчем)
+    toast.success('Клиент удалён');
+    navigate('/clients');
+    withRetry(() => api.delete(`/clients/${data.id}`)).catch((e: any) => {
       toast.error(e?.response?.data?.message || 'Не удалось удалить клиента');
-    }
+    });
   };
 
   return (

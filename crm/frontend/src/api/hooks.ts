@@ -6,6 +6,12 @@ interface Options {
   deps?: any[];
   /** Интервал фонового авто-обновления, мс (живые данные без F5) */
   pollMs?: number;
+  /**
+   * Пока возвращает true — фоновое авто-обновление и refetch-при-фокусе
+   * НЕ выполняются. Нужно, чтобы поллинг не перетирал оптимистичное
+   * состояние во время незавершённой операции (напр. перетаскивание в воронке).
+   */
+  pollPaused?: () => boolean;
 }
 
 /**
@@ -53,6 +59,10 @@ type Updater<T> = T | null | ((prev: T | null) => T | null);
  */
 export function useFetch<T>(url: string | null, opts: Options = {}) {
   const { deps = [], pollMs } = opts;
+  // держим актуальную функцию-паузу в ref, чтобы интервал/обработчики
+  // всегда видели свежее значение без пересоздания эффектов
+  const pausedRef = useRef(opts.pollPaused);
+  pausedRef.current = opts.pollPaused;
   const [data, setData] = useState<T | null>(
     () => (url && cache.has(url) ? (cache.get(url) as T) : null),
   );
@@ -112,21 +122,23 @@ export function useFetch<T>(url: string | null, opts: Options = {}) {
     load(false);
   }, [load]);
 
-  // фоновый поллинг (тихо) — приостанавливается на скрытой вкладке
+  // фоновый поллинг (тихо) — пауза на скрытой вкладке и когда pollPaused()
   useEffect(() => {
     if (!pollMs || !url) return;
     const id = setInterval(() => {
-      if (!document.hidden) load(true);
+      if (!document.hidden && !pausedRef.current?.()) load(true);
     }, pollMs);
     return () => clearInterval(id);
   }, [pollMs, url, load]);
 
-  // обновление при возврате на вкладку (тихо)
+  // обновление при возврате на вкладку (тихо) — тоже уважает паузу
   useEffect(() => {
     if (!url) return;
-    const onFocus = () => load(true);
+    const onFocus = () => {
+      if (!pausedRef.current?.()) load(true);
+    };
     const onVis = () => {
-      if (!document.hidden) load(true);
+      if (!document.hidden && !pausedRef.current?.()) load(true);
     };
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onVis);

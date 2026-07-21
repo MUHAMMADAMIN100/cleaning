@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   DragDropContext,
   Droppable,
   Draggable,
   type DropResult,
 } from '@hello-pangea/dnd';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../api/client';
 import { useFetch } from '../api/hooks';
 import { useToast } from '../components/Toast';
@@ -13,23 +14,129 @@ import { Spinner, PageHeader, Badge, ErrorState } from '../components/ui';
 import { OrderModal } from '../components/OrderModal';
 import {
   STAGE_COLOR,
+  STAGE_LABEL,
+  STAGE_ORDER,
   TYPE_LABEL,
   formatPrice,
   formatVolume,
 } from '../lib/labels';
 import type { BoardColumn, FunnelStage, Order } from '../types';
 
+// основной конвейер этапов (без «Отказа» — он отдельной кнопкой на мобильном)
+const PIPELINE: FunnelStage[] = STAGE_ORDER.filter((s) => s !== 'REJECTED');
+
+// Тело карточки заказа. Вынесено на уровень модуля (а не внутрь Funnel),
+// чтобы при поллинге/оптимистичных обновлениях карточки НЕ пересоздавались
+// (иначе новая ссылка на компонент → полный ремоунт всех карточек и рывок).
+function OrderCardBody({
+  o,
+  isTouch,
+  onChange,
+}: {
+  o: Order;
+  isTouch: boolean;
+  onChange: (orderId: string, newStage: FunnelStage) => void;
+}) {
+  const idx = PIPELINE.indexOf(o.stage);
+  const prevStage = idx > 0 ? PIPELINE[idx - 1] : null;
+  const nextStage =
+    idx >= 0 && idx < PIPELINE.length - 1 ? PIPELINE[idx + 1] : null;
+  return (
+    <>
+      <div className="flex items-start justify-between gap-2">
+        <div className="font-semibold text-navy-900">{o.client?.fullName}</div>
+        {o.isLarge && (
+          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
+            КРУПНЫЙ
+          </span>
+        )}
+      </div>
+      <div className="mt-1 text-xs text-navy-400">
+        {TYPE_LABEL[o.cleaningType]} · {formatVolume(o)}
+      </div>
+      <div className="mt-2 flex items-center justify-between">
+        <span className="text-sm font-bold text-navy-700">
+          {formatPrice(o.finalPrice ?? o.estimatedPrice)}
+        </span>
+        {o.cleaners && o.cleaners.length > 0 && (
+          <span className="text-xs text-navy-400">👥 {o.cleaners.length}</span>
+        )}
+      </div>
+
+      {/* Мобильные контролы смены этапа — только на тач-устройствах */}
+      {isTouch && (
+        <div
+          className="mt-3 border-t border-navy-100 pt-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {o.stage === 'REJECTED' ? (
+            <button
+              onClick={() => onChange(o.id, 'NEW')}
+              className="flex w-full items-center justify-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-navy-600 hover:bg-navy-50"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Вернуть в работу
+            </button>
+          ) : (
+            <div className="flex items-center justify-between gap-1">
+              <button
+                onClick={() => prevStage && onChange(o.id, prevStage)}
+                disabled={!prevStage}
+                className="flex items-center gap-0.5 rounded-lg px-1.5 py-1 text-xs font-medium text-navy-600 hover:bg-navy-50 disabled:opacity-30"
+                title={prevStage ? STAGE_LABEL[prevStage] : ''}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Назад
+              </button>
+              <button
+                onClick={() => onChange(o.id, 'REJECTED')}
+                className="rounded-lg px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-50"
+              >
+                Отказ
+              </button>
+              <button
+                onClick={() => nextStage && onChange(o.id, nextStage)}
+                disabled={!nextStage}
+                className="flex items-center gap-0.5 rounded-lg px-1.5 py-1 text-xs font-medium text-navy-600 hover:bg-navy-50 disabled:opacity-30"
+                title={nextStage ? STAGE_LABEL[nextStage] : ''}
+              >
+                Далее
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
 export function Funnel() {
   const toast = useToast();
   const dialog = useDialog();
+  // на тач-устройствах (телефон/планшет) перетаскивание неудобно —
+  // отключаем drag и показываем стрелки для смены этапа
+  const isTouch = useMemo(
+    () =>
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(pointer: coarse)').matches,
+    [],
+  );
+
+  // счётчик незавершённых операций смены этапа + флаг перетаскивания —
+  // пока они активны, авто-обновление доски на паузе (иначе карточка
+  // «доезжает и сбрасывается», когда поллинг подтянет старое состояние)
+  const draggingRef = useRef(false);
+  const inFlightRef = useRef(0);
+
   const { data, loading, error, reload, setData } = useFetch<BoardColumn[]>(
     '/orders/board',
-    { pollMs: 10000 },
+    {
+      pollMs: 10000,
+      pollPaused: () => draggingRef.current || inFlightRef.current > 0,
+    },
   );
   const [openOrder, setOpenOrder] = useState<Order | null>(null);
-  // true во время и сразу после перетаскивания — чтобы «клик», который
-  // браузер шлёт после отпускания карточки, не открывал модалку (двойное срабатывание)
-  const draggingRef = useRef(false);
 
   // Оптимистичное перемещение карточки между этапами (до ответа сервера)
   const applyPatch = (orderId: string, patch: Partial<Order>) => {
@@ -54,23 +161,13 @@ export function Funnel() {
     });
   };
 
-  const onDragStart = () => {
-    draggingRef.current = true;
-  };
-
-  // Перетаскивание карточки в другую колонку = смена этапа
-  const onDragEnd = async (result: DropResult) => {
-    // сбрасываем флаг на следующий тик: клик после отпускания приходит
-    // раньше таймера и будет подавлен, а обычный клик не тронут
-    setTimeout(() => {
-      draggingRef.current = false;
-    }, 0);
-    const { source, destination, draggableId } = result;
-    if (!destination || source.droppableId === destination.droppableId) return;
-
-    const newStage = destination.droppableId as FunnelStage;
+  /**
+   * Смена этапа заказа — общая логика для drag (ПК) и стрелок (мобильный).
+   * Оптимистично: карточка переезжает мгновенно, запрос уходит в фон,
+   * доску не перезапрашиваем; откат только при ошибке.
+   */
+  const changeStage = async (orderId: string, newStage: FunnelStage) => {
     let rejectionReason: string | undefined;
-
     if (newStage === 'REJECTED') {
       const reason = await dialog.prompt({
         title: 'Причина отказа',
@@ -82,20 +179,33 @@ export function Funnel() {
       rejectionReason = reason;
     }
 
-    // Оптимистично: карточка переезжает мгновенно, запрос уходит в фон.
-    // На успехе НЕ перезапрашиваем доску (иначе карточка «оседает» после
-    // ответа сервера) — фоновое авто-обновление сверит состояние само.
-    // Откат — только при ошибке.
-    applyPatch(draggableId, { stage: newStage, rejectionReason });
+    applyPatch(orderId, { stage: newStage, rejectionReason });
+    inFlightRef.current += 1;
     try {
-      await api.patch(`/orders/${draggableId}/stage`, {
+      await api.patch(`/orders/${orderId}/stage`, {
         stage: newStage,
         rejectionReason,
       });
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Не удалось сменить этап');
       reload(); // вернуть серверное состояние
+    } finally {
+      inFlightRef.current -= 1;
     }
+  };
+
+  const onDragStart = () => {
+    draggingRef.current = true;
+  };
+
+  const onDragEnd = (result: DropResult) => {
+    // клик после отпускания приходит раньше таймера и будет подавлен
+    setTimeout(() => {
+      draggingRef.current = false;
+    }, 0);
+    const { source, destination, draggableId } = result;
+    if (!destination || source.droppableId === destination.droppableId) return;
+    void changeStage(draggableId, destination.droppableId as FunnelStage);
   };
 
   if (!data) {
@@ -107,7 +217,11 @@ export function Funnel() {
     <div>
       <PageHeader
         title="Воронка продаж"
-        subtitle="Перетаскивайте карточки между этапами или нажмите для деталей"
+        subtitle={
+          isTouch
+            ? 'Меняйте этап стрелками или нажмите карточку для деталей'
+            : 'Перетаскивайте карточки между этапами или нажмите для деталей'
+        }
       />
 
       <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
@@ -121,7 +235,7 @@ export function Funnel() {
                 </span>
               </div>
 
-              <Droppable droppableId={col.stage}>
+              <Droppable droppableId={col.stage} isDropDisabled={isTouch}>
                 {(provided, snapshot) => (
                   <div
                     ref={provided.innerRef}
@@ -131,7 +245,12 @@ export function Funnel() {
                     }`}
                   >
                     {col.orders.map((o, index) => (
-                      <Draggable key={o.id} draggableId={o.id} index={index}>
+                      <Draggable
+                        key={o.id}
+                        draggableId={o.id}
+                        index={index}
+                        isDragDisabled={isTouch}
+                      >
                         {(p, snap) => (
                           <div
                             ref={p.innerRef}
@@ -146,29 +265,11 @@ export function Funnel() {
                               snap.isDragging ? 'shadow-xl ring-2 ring-navy-300' : ''
                             }`}
                           >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="font-semibold text-navy-900">
-                                {o.client?.fullName}
-                              </div>
-                              {o.isLarge && (
-                                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
-                                  КРУПНЫЙ
-                                </span>
-                              )}
-                            </div>
-                            <div className="mt-1 text-xs text-navy-400">
-                              {TYPE_LABEL[o.cleaningType]} · {formatVolume(o)}
-                            </div>
-                            <div className="mt-2 flex items-center justify-between">
-                              <span className="text-sm font-bold text-navy-700">
-                                {formatPrice(o.finalPrice ?? o.estimatedPrice)}
-                              </span>
-                              {o.cleaners && o.cleaners.length > 0 && (
-                                <span className="text-xs text-navy-400">
-                                  👥 {o.cleaners.length}
-                                </span>
-                              )}
-                            </div>
+                            <OrderCardBody
+                              o={o}
+                              isTouch={isTouch}
+                              onChange={changeStage}
+                            />
                           </div>
                         )}
                       </Draggable>
@@ -176,7 +277,7 @@ export function Funnel() {
                     {provided.placeholder}
                     {col.orders.length === 0 && !snapshot.isDraggingOver && (
                       <div className="rounded-xl border border-dashed border-navy-200 py-6 text-center text-xs text-navy-300">
-                        Перетащите сюда
+                        {isTouch ? 'Нет заказов' : 'Перетащите сюда'}
                       </div>
                     )}
                   </div>

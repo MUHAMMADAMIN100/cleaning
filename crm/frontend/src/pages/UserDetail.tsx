@@ -58,11 +58,50 @@ interface ListItem {
 export function UserDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const { user: viewer } = useAuth();
-  const { data, loading, error, reload } = useFetch<UserDetailData>(
+  const { data, loading, error, reload, setData } = useFetch<UserDetailData>(
     `/users/${id}`,
     { deps: [id] },
   );
+
+  // оптимистичное сохранение профиля: карточка обновляется сразу, запрос — в фоне
+  const saveUser = (payload: {
+    fullName: string;
+    login: string;
+    phone: string;
+    position: string;
+    duties: string;
+    mainTask: string;
+    role: Role;
+    canManageOps: boolean;
+    isActive: boolean;
+    password?: string;
+  }) => {
+    setData((d) =>
+      d
+        ? {
+            ...d,
+            fullName: payload.fullName,
+            login: payload.login,
+            phone: payload.phone,
+            position: payload.position,
+            duties: payload.duties,
+            mainTask: payload.mainTask,
+            role: payload.role,
+            canManageOps: payload.canManageOps,
+            isActive: payload.isActive,
+          }
+        : d,
+    );
+    api
+      .patch(`/users/${id}`, payload)
+      .then(() => reload())
+      .catch((e: any) => {
+        toast.error(e?.response?.data?.message || 'Не удалось сохранить');
+        reload();
+      });
+  };
   const [showEdit, setShowEdit] = useState(false);
   const [list, setList] = useState<{ type: string; title: string } | null>(null);
   const { data: items, loading: itemsLoading } = useFetch<ListItem[]>(
@@ -280,10 +319,7 @@ export function UserDetail() {
         <EditUserModal
           user={data}
           onClose={() => setShowEdit(false)}
-          onSaved={() => {
-            setShowEdit(false);
-            reload();
-          }}
+          onSubmit={saveUser}
         />
       )}
     </div>
@@ -293,11 +329,22 @@ export function UserDetail() {
 function EditUserModal({
   user,
   onClose,
-  onSaved,
+  onSubmit,
 }: {
   user: UserDetailData;
   onClose: () => void;
-  onSaved: () => void;
+  onSubmit: (payload: {
+    fullName: string;
+    login: string;
+    phone: string;
+    position: string;
+    duties: string;
+    mainTask: string;
+    role: Role;
+    canManageOps: boolean;
+    isActive: boolean;
+    password?: string;
+  }) => void;
 }) {
   const toast = useToast();
   const [fullName, setFullName] = useState(user.fullName);
@@ -310,30 +357,23 @@ function EditUserModal({
   const [canManageOps, setCanManageOps] = useState(!!user.canManageOps);
   const [isActive, setIsActive] = useState(user.isActive);
   const [password, setPassword] = useState('');
-  const [saving, setSaving] = useState(false);
 
-  const submit = async () => {
-    setSaving(true);
-    try {
-      await api.patch(`/users/${user.id}`, {
-        fullName,
-        login,
-        phone,
-        position,
-        duties,
-        mainTask,
-        role,
-        canManageOps,
-        isActive,
-        ...(password ? { password } : {}),
-      });
-      toast.success('Сохранено');
-      onSaved();
-    } catch (e: any) {
-      toast.error(e?.response?.data?.message || 'Не удалось сохранить');
-    } finally {
-      setSaving(false);
-    }
+  // оптимистично: применяем и закрываем сразу, запрос уходит в фон
+  const submit = () => {
+    onSubmit({
+      fullName,
+      login,
+      phone,
+      position,
+      duties,
+      mainTask,
+      role,
+      canManageOps,
+      isActive,
+      ...(password ? { password } : {}),
+    });
+    toast.success('Сохранено');
+    onClose();
   };
 
   return (
@@ -433,10 +473,10 @@ function EditUserModal({
           </button>
           <button
             onClick={submit}
-            disabled={saving || !fullName || !login}
+            disabled={!fullName || !login}
             className="btn-primary"
           >
-            {saving ? 'Сохранение…' : 'Сохранить'}
+            Сохранить
           </button>
         </div>
       </div>

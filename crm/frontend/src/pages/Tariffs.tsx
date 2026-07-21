@@ -52,7 +52,7 @@ type PriceMap = Record<string, { light: string; medium: string; heavy: string }>
 
 export function Tariffs() {
   const toast = useToast();
-  const { data, loading, reload } = useFetch<TariffsData>('/tariffs');
+  const { data, loading, reload, setData } = useFetch<TariffsData>('/tariffs');
   // Цены храним строками — чтобы поле можно было очистить и не было «прилипшего» нуля
   const [prices, setPrices] = useState<PriceMap>({});
   const [extraPrices, setExtraPrices] = useState<Record<string, string>>({});
@@ -83,39 +83,55 @@ export function Tariffs() {
 
   if (loading || !data) return <Spinner />;
 
-  const saveTariff = async (t: Tariff) => {
+  const saveTariff = (t: Tariff) => {
     const p = prices[t.key];
     if (!p) return;
     // у услуги без уровней (мебель) одна цена — во все три поля
     const light = Number(p.light || 0);
     const medium = t.hasLevels ? Number(p.medium || 0) : light;
     const heavy = t.hasLevels ? Number(p.heavy || 0) : light;
-    try {
-      await api.patch(`/tariffs/tariff/${t.key}`, {
+    // оптимистично: кнопка сразу показывает «Сохранено», запрос — в фоне
+    setData((d) =>
+      d
+        ? {
+            ...d,
+            tariffs: d.tariffs.map((x) =>
+              x.key === t.key
+                ? { ...x, priceLight: light, priceMedium: medium, priceHeavy: heavy }
+                : x,
+            ),
+          }
+        : d,
+    );
+    toast.success('Цены обновлены');
+    api
+      .patch(`/tariffs/tariff/${t.key}`, {
         priceLight: light,
         priceMedium: medium,
         priceHeavy: heavy,
         pricePerSqm: medium, // совместимость со старым бэкендом на время деплоя
+      })
+      .catch(() => {
+        toast.error('Не удалось сохранить цены');
+        reload(); // вернуть серверные значения
       });
-      toast.success('Цены обновлены');
-      reload();
-    } catch {
-      toast.error('Не удалось сохранить цены');
-      reload();
-    }
   };
 
-  const saveExtra = async (key: string) => {
-    try {
-      await api.patch(`/tariffs/extra/${key}`, {
-        price: Number(extraPrices[key] || 0),
-      });
-      toast.success('Цена обновлена');
-      reload();
-    } catch {
+  const saveExtra = (key: string) => {
+    const price = Number(extraPrices[key] || 0);
+    setData((d) =>
+      d
+        ? {
+            ...d,
+            extras: d.extras.map((x) => (x.key === key ? { ...x, price } : x)),
+          }
+        : d,
+    );
+    toast.success('Цена обновлена');
+    api.patch(`/tariffs/extra/${key}`, { price }).catch(() => {
       toast.error('Не удалось сохранить цену');
       reload();
-    }
+    });
   };
 
   return (
