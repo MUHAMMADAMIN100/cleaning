@@ -123,14 +123,22 @@ export function Schedule() {
       });
   };
 
-  // группировка по дате (по отфильтрованному списку)
-  const groups = filtered.reduce<Record<string, ScheduleEvent[]>>((acc, e) => {
-    const key = new Date(e.date).toLocaleDateString('ru-RU', {
+  // группировка по дате (по отфильтрованному списку).
+  // Ключ — стабильный YYYY-MM-DD с годом (иначе одна дата из разных лет
+  // схлопнулась бы в одну группу); подпись в заголовке — без года.
+  const groups = filtered.reduce<
+    Record<string, { label: string; events: ScheduleEvent[] }>
+  >((acc, e) => {
+    const d = new Date(e.date);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+      d.getDate(),
+    ).padStart(2, '0')}`;
+    const label = d.toLocaleDateString('ru-RU', {
       weekday: 'long',
       day: '2-digit',
       month: 'long',
     });
-    (acc[key] ||= []).push(e);
+    (acc[key] ||= { label, events: [] }).events.push(e);
     return acc;
   }, {});
 
@@ -199,10 +207,10 @@ export function Schedule() {
         <EmptyState text="Нет событий в выбранном периоде" />
       ) : (
         <div className="space-y-6">
-          {Object.entries(groups).map(([day, events]) => (
-            <div key={day}>
+          {Object.entries(groups).map(([key, { label, events }]) => (
+            <div key={key}>
               <h3 className="mb-2 text-sm font-bold capitalize text-navy-500">
-                {day}
+                {label}
               </h3>
               <div className="space-y-2">
                 {events.map((e) => {

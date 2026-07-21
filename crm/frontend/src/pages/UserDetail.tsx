@@ -78,6 +78,7 @@ export function UserDetail() {
     isActive: boolean;
     password?: string;
   }) => {
+    const prev = data; // снапшот для отката, если сеть недоступна
     setData((d) =>
       d
         ? {
@@ -99,6 +100,8 @@ export function UserDetail() {
       .then(() => reload())
       .catch((e: any) => {
         toast.error(e?.response?.data?.message || 'Не удалось сохранить');
+        // откат напрямую к снапшоту — корректен даже когда GET недоступен
+        setData(prev ?? null);
         reload();
       });
   };

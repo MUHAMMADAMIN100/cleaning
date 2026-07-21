@@ -103,6 +103,12 @@ export function Tariffs() {
           }
         : d,
     );
+    // нормализуем строки в полях к сохранённым числам — иначе очищенное поле
+    // (пустая строка ≠ "0") навсегда осталось бы в состоянии «Сохранить»
+    setPrices((prev) => ({
+      ...prev,
+      [t.key]: { light: String(light), medium: String(medium), heavy: String(heavy) },
+    }));
     toast.success('Цены обновлены');
     api
       .patch(`/tariffs/tariff/${t.key}`, {
@@ -127,6 +133,7 @@ export function Tariffs() {
           }
         : d,
     );
+    setExtraPrices((prev) => ({ ...prev, [key]: String(price) }));
     toast.success('Цена обновлена');
     api.patch(`/tariffs/extra/${key}`, { price }).catch(() => {
       toast.error('Не удалось сохранить цену');

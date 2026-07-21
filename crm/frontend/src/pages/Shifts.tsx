@@ -80,7 +80,11 @@ function DayMarking() {
   const syncedFor = useRef<string | null>(null);
   const baselineRef = useRef<string[]>([]);
   useEffect(() => {
+    // при смене даты сбрасываем отметки и baseline — иначе кнопка «Сохранить»
+    // над спиннером новой даты сохранила бы отметки предыдущего дня в новую дату
     syncedFor.current = null;
+    setChecked(new Set());
+    baselineRef.current = [];
   }, [date]);
   useEffect(() => {
     if (dayShifts && syncedFor.current !== date) {
@@ -139,7 +143,9 @@ function DayMarking() {
       }),
     )
       .then(() => {
-        syncedFor.current = null; // принять свежее состояние сервера
+        // НЕ обнуляем syncedFor: оптимистичное состояние уже равно сохранённому,
+        // а ресинк перетёр бы отметки, сделанные пользователем после «Сохранить».
+        // reload лишь досогласует dayShifts со сервером (checked не трогаем).
         reload();
       })
       .catch((e: any) => {
@@ -267,7 +273,7 @@ function DayMarking() {
         </div>
         <button
           onClick={save}
-          disabled={!dirty}
+          disabled={!dirty || (loading && !dayShifts)}
           className={dirty ? 'btn-primary' : 'btn-ghost !text-navy-400'}
         >
           {dirty ? (

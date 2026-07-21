@@ -63,6 +63,10 @@ export function useFetch<T>(url: string | null, opts: Options = {}) {
   // всегда видели свежее значение без пересоздания эффектов
   const pausedRef = useRef(opts.pollPaused);
   pausedRef.current = opts.pollPaused;
+  // счётчик поколений данных: растёт при каждой оптимистичной записи.
+  // Фоновый GET, стартовавший ДО мутации, при возврате увидит другое
+  // поколение и не перетрёт свежее локальное состояние/кэш устаревшим ответом.
+  const dataGenRef = useRef(0);
   const [data, setData] = useState<T | null>(
     () => (url && cache.has(url) ? (cache.get(url) as T) : null),
   );
@@ -98,8 +102,12 @@ export function useFetch<T>(url: string | null, opts: Options = {}) {
       } else if (!silent) {
         setLoading(true);
       }
+      const gen = dataGenRef.current;
       try {
         const res = await api.get<T>(url);
+        // отставший фоновый ответ: между стартом запроса и его завершением
+        // произошла оптимистичная мутация — не перетираем ни кэш, ни состояние
+        if (silent && dataGenRef.current !== gen) return;
         cache.set(url, res.data);
         if (urlRef.current !== url) return; // URL уже сменился — не трогаем состояние
         setData(res.data);
@@ -154,6 +162,8 @@ export function useFetch<T>(url: string | null, opts: Options = {}) {
   /** Обновление данных + синхронизация кэша (для оптимистичных мутаций) */
   const updateData = useCallback(
     (updater: Updater<T>) => {
+      // помечаем новое поколение — отсекаем отставшие фоновые ответы
+      dataGenRef.current += 1;
       setData((prev) => {
         const next =
           typeof updater === 'function'
