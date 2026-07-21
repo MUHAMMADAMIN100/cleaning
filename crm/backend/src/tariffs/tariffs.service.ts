@@ -132,20 +132,35 @@ export class TariffsService implements OnModuleInit {
       pricePerSqm?: number;
     },
   ) {
-    const num = (v: unknown) => Math.max(0, Math.round(Number(v) || 0));
-    const legacy = prices.pricePerSqm;
-    const light = num(prices.priceLight ?? legacy);
-    const medium = num(prices.priceMedium ?? legacy);
-    const heavy = num(prices.priceHeavy ?? legacy);
-    return this.prisma.tariff.update({
-      where: { key },
-      data: {
-        priceLight: light,
-        priceMedium: medium,
-        priceHeavy: heavy,
-        pricePerSqm: medium, // legacy-поле держим в актуальном состоянии
-      },
-    });
+    const num = (v: unknown) =>
+      Math.min(Math.max(0, Math.round(Number(v) || 0)), 2_000_000_000);
+    // ЧАСТИЧНОЕ обновление: трогаем только переданные поля, чтобы
+    // отсутствующие уровни цен НЕ обнулялись.
+    const data: {
+      priceLight?: number;
+      priceMedium?: number;
+      priceHeavy?: number;
+      pricePerSqm?: number;
+    } = {};
+    const anyLevel =
+      prices.priceLight !== undefined ||
+      prices.priceMedium !== undefined ||
+      prices.priceHeavy !== undefined;
+    if (prices.priceLight !== undefined) data.priceLight = num(prices.priceLight);
+    if (prices.priceMedium !== undefined) {
+      data.priceMedium = num(prices.priceMedium);
+      data.pricePerSqm = num(prices.priceMedium); // legacy-поле = средняя цена
+    }
+    if (prices.priceHeavy !== undefined) data.priceHeavy = num(prices.priceHeavy);
+    // Старый клиент прислал только pricePerSqm — заполняем все уровни им.
+    if (!anyLevel && prices.pricePerSqm !== undefined) {
+      const v = num(prices.pricePerSqm);
+      data.priceLight = v;
+      data.priceMedium = v;
+      data.priceHeavy = v;
+      data.pricePerSqm = v;
+    }
+    return this.prisma.tariff.update({ where: { key }, data });
   }
 
   updateExtra(key: string, price: number) {

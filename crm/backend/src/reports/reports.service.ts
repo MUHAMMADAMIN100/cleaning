@@ -9,10 +9,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 
-/** Целое неотрицательное число (сомони/дни) из произвольного ввода */
+/** Целое неотрицательное число (сомони/дни) из произвольного ввода, с потолком (ниже int32) */
 const int = (v: unknown, def = 0) => {
   const n = Math.round(Number(v));
-  return Number.isFinite(n) && n >= 0 ? n : def;
+  if (!Number.isFinite(n) || n < 0) return def;
+  return Math.min(n, 2_000_000_000);
 };
 
 /** Строка из произвольного ввода (защита от не-строк в теле запроса) */

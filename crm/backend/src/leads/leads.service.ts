@@ -79,7 +79,11 @@ export class LeadsService {
       managerId: managerId ?? undefined,
     });
 
-    // 5. Заказ на этапе «Новая заявка»
+    // 5. Заказ на этапе «Новая заявка».
+    // Числа из заявки клампим в [0, 2e9] — заявка не может задать отрицательную
+    // или переполняющую int32 цену/площадь (иначе ошибка БД).
+    const clamp = (v: unknown) =>
+      Math.min(Math.max(0, Math.round(Number(v) || 0)), 2_000_000_000);
     const cleaningType = TYPE_MAP[dto.calculator?.cleaningTypeId] ?? CleaningType.GENERAL;
     const preferred =
       dto.quiz?.date && dto.quiz?.time
@@ -102,12 +106,12 @@ export class LeadsService {
         area:
           cleaningType === CleaningType.FURNITURE
             ? 0
-            : dto.calculator?.area ?? 0,
+            : clamp(dto.calculator?.area),
         seats:
           cleaningType === CleaningType.FURNITURE
-            ? dto.calculator?.seats ?? 0
+            ? clamp(dto.calculator?.seats)
             : null,
-        estimatedPrice: dto.total ?? 0,
+        estimatedPrice: clamp(dto.total),
         address: dto.contact.address,
         preferredDate: preferred,
         preferredTime: dto.quiz?.time,

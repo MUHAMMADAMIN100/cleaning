@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { ClientTag, LeadSource, Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -34,12 +38,15 @@ export class ClientsService {
     if (q.tag) where.tags = { has: q.tag };
     if (q.source) where.source = q.source;
     if (q.search) {
-      const digits = normalizePhone(q.search);
+      const term = q.search.trim();
+      // по телефону ищем ТОЛЬКО если запрос похож на номер (цифры/+/-/()/пробел)
+      // — иначе случайная цифра в имени («Иван2», «UTF8») цепляла бы всех,
+      // у кого эта цифра есть в телефоне.
+      const isPhoneQuery = /^[\d\s+\-()]+$/.test(term);
+      const digits = normalizePhone(term);
       where.OR = [
-        { fullName: { contains: q.search, mode: 'insensitive' } },
-        // по телефону — только если в запросе есть цифры
-        // (иначе contains: "" совпадал бы со всеми клиентами)
-        ...(digits ? [{ phone: { contains: digits } }] : []),
+        { fullName: { contains: term, mode: 'insensitive' } },
+        ...(isPhoneQuery && digits ? [{ phone: { contains: digits } }] : []),
       ];
     }
 
@@ -90,6 +97,12 @@ export class ClientsService {
     notes?: string;
   }) {
     const phone = normalizePhone(data.phone);
+    // телефон должен содержать хотя бы 5 цифр — иначе «мусорные» номера
+    // (пустые/из одних дефисов) схлопывали бы разных клиентов в одного
+    if (phone.length < 5) {
+      throw new BadRequestException('Укажите корректный номер телефона');
+    }
+    const fullName = (data.fullName || '').trim().slice(0, 120); // ограничение длины
     const existing = await this.prisma.client.findUnique({ where: { phone } });
     if (existing) {
       // обновляем дату последнего контакта
@@ -101,7 +114,7 @@ export class ClientsService {
     }
     const client = await this.prisma.client.create({
       data: {
-        fullName: data.fullName,
+        fullName,
         phone,
         email: data.email,
         source: data.source ?? LeadSource.SITE,

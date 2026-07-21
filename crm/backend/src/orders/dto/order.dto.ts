@@ -5,6 +5,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Max,
   Min,
 } from 'class-validator';
 import {
@@ -15,14 +16,18 @@ import {
   LeadSource,
 } from '@prisma/client';
 
+// Верхняя граница для целых полей — ниже int32 (Prisma Int), чтобы
+// огромное число давало 400 (валидация), а не 500 (переполнение БД).
+const MAX_INT = 2_000_000_000;
+
 export class CreateOrderDto {
   @IsString() clientId: string;
   @IsOptional() @IsEnum(CleaningType) cleaningType?: CleaningType;
   @IsOptional() @IsEnum(DirtLevel) dirtLevel?: DirtLevel;
-  @IsOptional() @IsInt() @Min(0) area?: number;
-  @IsOptional() @IsInt() @Min(0) seats?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(MAX_INT) area?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(MAX_INT) seats?: number;
   @IsOptional() @IsString() address?: string;
-  @IsOptional() @IsInt() @Min(0) estimatedPrice?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(MAX_INT) estimatedPrice?: number;
   @IsOptional() @IsEnum(LeadSource) source?: LeadSource;
   @IsOptional() @IsString() comment?: string;
   @IsOptional() @IsString() managerId?: string;
@@ -31,11 +36,11 @@ export class CreateOrderDto {
 export class UpdateOrderDto {
   @IsOptional() @IsEnum(CleaningType) cleaningType?: CleaningType;
   @IsOptional() @IsEnum(DirtLevel) dirtLevel?: DirtLevel;
-  @IsOptional() @IsInt() @Min(0) area?: number;
-  @IsOptional() @IsInt() @Min(0) seats?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(MAX_INT) area?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(MAX_INT) seats?: number;
   @IsOptional() @IsString() address?: string;
-  @IsOptional() @IsInt() @Min(0) estimatedPrice?: number;
-  @IsOptional() @IsInt() @Min(0) finalPrice?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(MAX_INT) estimatedPrice?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(MAX_INT) finalPrice?: number;
   @IsOptional() @IsString() inspectionDate?: string;
   @IsOptional() @IsString() scheduledDate?: string;
   @IsOptional() @IsString() comment?: string;

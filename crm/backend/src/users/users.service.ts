@@ -244,4 +244,16 @@ export class UsersService {
       select: SAFE_SELECT,
     });
   }
+
+  /** Удаление сотрудника (директор). Нельзя удалить свой аккаунт. */
+  async remove(requester: AuthUser, id: string) {
+    if (requester.id === id) {
+      throw new BadRequestException('Нельзя удалить свой аккаунт');
+    }
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('Сотрудник не найден');
+    // клиенты/заказы/клинеры отвяжутся (managerId → null), задачи/отчёты — каскад
+    await this.prisma.user.delete({ where: { id } });
+    return { ok: true };
+  }
 }

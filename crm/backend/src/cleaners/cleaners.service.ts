@@ -55,11 +55,14 @@ export class CleanersService {
     }
     const managerId = seesAll(user) ? data.managerId ?? user.id : user.id;
     const rate = Math.round(Number(data.rate));
+    const safeRate = Number.isFinite(rate) && rate > 0 && rate <= 2_000_000_000
+      ? rate
+      : 230;
     return this.prisma.cleaner.create({
       data: {
         fullName: data.fullName.trim(),
         phone: data.phone,
-        rate: Number.isFinite(rate) && rate > 0 ? rate : 230,
+        rate: safeRate,
         brigadeId: data.brigadeId || null,
         managerId,
       },
@@ -84,8 +87,8 @@ export class CleanersService {
     if (data.brigadeId !== undefined) patch.brigadeId = data.brigadeId || null;
     if (data.rate !== undefined) {
       const rate = Math.round(Number(data.rate));
-      if (!Number.isFinite(rate) || rate <= 0) {
-        throw new BadRequestException('Укажите ставку больше нуля');
+      if (!Number.isFinite(rate) || rate <= 0 || rate > 2_000_000_000) {
+        throw new BadRequestException('Укажите корректную ставку');
       }
       patch.rate = rate;
     }

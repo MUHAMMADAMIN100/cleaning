@@ -1,18 +1,40 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ShieldCheck, UserRound } from 'lucide-react';
+import { Plus, ShieldCheck, UserRound, Trash2 } from 'lucide-react';
 import { api } from '../api/client';
 import { useFetch } from '../api/hooks';
 import { Spinner, PageHeader, Badge, Modal, PasswordInput } from '../components/ui';
 import { useToast } from '../components/Toast';
-import { tempId } from '../lib/util';
+import { useDialog } from '../components/Dialog';
+import { useAuth } from '../auth/AuthContext';
+import { tempId, withRetry } from '../lib/util';
 import type { Manager, Role } from '../types';
 
 export function UsersPage() {
   const toast = useToast();
+  const dialog = useDialog();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { data, loading, reload, setData } = useFetch<Manager[]>('/users');
   const [showAdd, setShowAdd] = useState(false);
+
+  const removeUser = async (u: Manager) => {
+    const ok = await dialog.confirm({
+      title: 'Удалить сотрудника?',
+      message: `${u.fullName} (@${u.login}) будет удалён. Его клиенты и заказы останутся, но без назначенного менеджера.`,
+      confirmText: 'Удалить',
+      danger: true,
+    });
+    if (!ok) return;
+    setData((list) => (list ? list.filter((x) => x.id !== u.id) : list));
+    try {
+      await withRetry(() => api.delete(`/users/${u.id}`));
+      toast.success('Сотрудник удалён');
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Не удалось удалить сотрудника');
+      reload();
+    }
+  };
 
   const toggleActive = async (id: string, isActive: boolean) => {
     setData((u) =>
@@ -103,17 +125,31 @@ export function UsersPage() {
                 >
                   {u.role === 'DIRECTOR' ? 'Руководитель' : 'Менеджер'}
                 </Badge>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleActive(u.id, !u.isActive);
-                  }}
-                  className={`text-xs font-semibold ${
-                    u.isActive ? 'text-green-600' : 'text-navy-400'
-                  }`}
-                >
-                  {u.isActive ? '● Активен' : '○ Отключён'}
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleActive(u.id, !u.isActive);
+                    }}
+                    className={`text-xs font-semibold ${
+                      u.isActive ? 'text-green-600' : 'text-navy-400'
+                    }`}
+                  >
+                    {u.isActive ? '● Активен' : '○ Отключён'}
+                  </button>
+                  {u.id !== user?.id && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeUser(u);
+                      }}
+                      className="rounded-lg p-1.5 text-navy-300 hover:bg-red-50 hover:text-red-600"
+                      title="Удалить сотрудника"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}

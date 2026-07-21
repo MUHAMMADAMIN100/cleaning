@@ -19,7 +19,13 @@ export class ScheduleService {
     if (q.from || q.to) {
       where.date = {};
       if (q.from) (where.date as any).gte = new Date(q.from);
-      if (q.to) (where.date as any).lte = new Date(q.to);
+      if (q.to) {
+        // для даты без времени берём КОНЕЦ дня, иначе события после
+        // полуночи выпадали бы из выборки за этот день
+        (where.date as any).lte = /^\d{4}-\d{2}-\d{2}$/.test(q.to)
+          ? new Date(`${q.to}T23:59:59.999Z`)
+          : new Date(q.to);
+      }
     }
     return this.prisma.scheduleEvent.findMany({
       where,

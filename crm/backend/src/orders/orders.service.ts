@@ -63,12 +63,14 @@ export class OrdersService {
     if (q.stage) where.stage = q.stage;
     if (seesAll(user) && q.managerId) where.managerId = q.managerId;
     if (q.search) {
-      const digits = q.search.replace(/\D/g, '');
+      const term = q.search.trim();
+      const isPhoneQuery = /^[\d\s+\-()]+$/.test(term);
+      const digits = term.replace(/\D/g, '');
       where.client = {
         OR: [
-          { fullName: { contains: q.search, mode: 'insensitive' } },
-          // по телефону — только при наличии цифр (иначе совпало бы со всеми)
-          ...(digits ? [{ phone: { contains: digits } }] : []),
+          { fullName: { contains: term, mode: 'insensitive' } },
+          // по телефону — только если запрос похож на номер
+          ...(isPhoneQuery && digits ? [{ phone: { contains: digits } }] : []),
         ],
       };
     }

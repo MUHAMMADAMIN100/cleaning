@@ -123,8 +123,8 @@ export class PayrollService {
     dto: { cleanerId: string; amount: number; reason: string; date?: string },
   ) {
     const amount = Math.round(Number(dto.amount));
-    if (!Number.isFinite(amount) || amount <= 0) {
-      throw new BadRequestException('Укажите сумму штрафа');
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 2_000_000_000) {
+      throw new BadRequestException('Укажите корректную сумму штрафа');
     }
     if (!dto.reason?.trim()) {
       throw new BadRequestException('Укажите причину штрафа');

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -51,6 +52,12 @@ export class UsersController {
   @Patch(':id/active')
   setActive(@Param('id') id: string, @Body('isActive') isActive: boolean) {
     return this.service.setActive(id, isActive);
+  }
+
+  @Roles(Role.DIRECTOR)
+  @Delete(':id')
+  remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.service.remove(user, id);
   }
 
   @Roles(Role.DIRECTOR)
